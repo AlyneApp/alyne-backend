@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
       // Create user profile
       const { error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .insert([
           {
             id: authData.user.id,
