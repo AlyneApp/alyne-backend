@@ -39,15 +39,20 @@ export async function POST(request: NextRequest) {
             id: authData.user.id,
             username,
             email,
-            created_at: new Date().toISOString(),
           },
         ]);
 
       if (profileError) {
         console.error('Profile creation error:', profileError);
+        console.error('Profile error details:', {
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint,
+          code: profileError.code,
+        });
         // Attempt to delete the auth user since profile creation failed
         await supabase.auth.admin.deleteUser(authData.user.id);
-        return createServerError('Failed to create user profile');
+        return createServerError(`Failed to create user profile: ${profileError.message}`);
       }
 
       return createSuccessResponse({
