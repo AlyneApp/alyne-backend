@@ -1,72 +1,69 @@
-import { NextRequest } from 'next/server';
-import { withAuth } from '../../common/middleware/auth';
-import { registerSchema } from '../../common/types/auth';
-import { createSuccessResponse, createValidationError, createServerError } from '../../common/utils/response';
+import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
-  return withAuth(request, async (req, supabase) => {
-    try {
-      const body = await req.json();
-      
-      // Validate request body
-      const result = registerSchema.safeParse(body);
-      if (!result.success) {
-        return createValidationError(result.error.errors[0].message);
-      }
+  try {
+    const { email, password, username } = await request.json();
 
-      const { email, password, username } = result.data;
-
-      // Create user in Supabase
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (authError) {
-        console.error('Registration auth error:', authError);
-        return createServerError('Failed to create user account');
-      }
-
-      if (!authData.user) {
-        return createServerError('User creation failed');
-      }
-
-      // Create user profile
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert([
-          {
-            id: authData.user.id,
-            username,
-            email,
-          },
-        ]);
-
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        console.error('Profile error details:', {
-          message: profileError.message,
-          details: profileError.details,
-          hint: profileError.hint,
-          code: profileError.code,
-        });
-        // Attempt to delete the auth user since profile creation failed
-        await supabase.auth.admin.deleteUser(authData.user.id);
-        return createServerError(`Failed to create user profile: ${profileError.message}`);
-      }
-
-      return createSuccessResponse({
-        user: {
-          id: authData.user.id,
-          email: authData.user.email!,
-          username,
-        },
-        message: 'Registration successful',
-      });
-
-    } catch (error) {
-      console.error('Unexpected error in registration:', error);
-      return createServerError('An unexpected error occurred');
+    // Validate input
+    if (!email || !password || !username) {
+      return NextResponse.json(
+        { error: 'Email, password, and username are required' },
+        { status: 400 }
+      );
     }
-  });
+
+    // Create user with Supabase
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (authError) {
+      return NextResponse.json(
+        { error: authError.message },
+        { status: 400 }
+      );
+    }
+
+    if (!authData.user) {
+      return NextResponse.json(
+        { error: 'User creation failed' },
+        { status: 500 }
+      );
+    }
+
+    // Create user profile
+    const { error: profileError } = await supabase
+      .from('users')
+      .insert([{
+        id: authData.user.id,
+        email,
+        username,
+      }]);
+
+    if (profileError) {
+      console.error('Profile creation error:', profileError);
+      return NextResponse.json(
+        { error: `Profile creation failed: ${profileError.message}` },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: authData.user.id,
+        email,
+        username,
+      },
+    });
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 } 
