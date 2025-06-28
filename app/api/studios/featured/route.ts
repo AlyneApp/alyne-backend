@@ -1,7 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-export async function GET(request: NextRequest) {
+interface Studio {
+  id: string;
+  name: string;
+  description: string | null;
+  location: any; // Geography type from PostGIS
+  address: string | null;
+  image_urls: string[] | null;
+  is_featured: boolean | null;
+  created_at: string;
+}
+
+export async function GET() {
   try {
     // Fetch featured studios from the database
     const { data: studios, error } = await supabase
@@ -29,7 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform the data for frontend compatibility
-    const studiosWithDistance = studios?.map((studio: any) => ({
+    const studiosWithDistance = studios?.map((studio: Studio) => ({
       ...studio,
       image_url: studio.image_urls?.[0] || null, // Use first image from array
       distance: Math.floor(Math.random() * 20) + 1, // Random distance 1-20 mins for now
