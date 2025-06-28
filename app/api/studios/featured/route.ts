@@ -5,7 +5,7 @@ interface Studio {
   id: string;
   name: string;
   description: string | null;
-  location: any; // Geography type from PostGIS
+  location: unknown; // PostGIS geography type
   address: string | null;
   image_urls: string[] | null;
   is_featured: boolean | null;
