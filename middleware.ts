@@ -8,6 +8,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/login',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
+  '/api/studios/featured', // Allow public access to featured studios
 ];
 
 export async function middleware(request: NextRequest) {
@@ -38,5 +39,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/:path*'],
+  matcher: ['/api/:path*']
 }; 
