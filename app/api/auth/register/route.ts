@@ -3,12 +3,12 @@ import { supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, username } = await request.json();
+    const { email, password, username, fullName } = await request.json();
 
     // Validate input
-    if (!email || !password || !username) {
+    if (!email || !password || !username || !fullName) {
       return NextResponse.json(
-        { error: 'Email, password, and username are required' },
+        { error: 'Email, password, username, and full name are required' },
         { status: 400 }
       );
     }
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
         id: authData.user.id,
         email,
         username,
+        full_name: fullName,
       }]);
 
     if (profileError) {
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
         id: authData.user.id,
         email,
         username,
+        fullName,
       },
     });
 
