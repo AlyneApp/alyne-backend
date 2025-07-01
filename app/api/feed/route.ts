@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+interface ClassActivityDetails {
+  class_name: string;
+  class_schedule?: string;
+  instructor_name?: string;
+}
+
+interface StudioActivityDetails {
+  like_count?: number;
+}
+
+interface PostActivityDetails {
+  message?: string;
+  title?: string;
+}
+
+type ActivityMetadata = ClassActivityDetails | StudioActivityDetails | PostActivityDetails | Record<string, unknown>;
+
 interface ActivityFeedItem {
   id: string;
   user_id: string;
   type: string;
   studio_id: string | null;
-  extra_data: any;
+  extra_data: ActivityMetadata; // This maps to the JSONB field in database
   created_at: string;
   users: {
     id: string;
@@ -21,23 +38,35 @@ interface ActivityFeedItem {
   } | null;
 }
 
-function formatActivityMessage(activity: ActivityFeedItem) {
+interface FormattedActivity {
+  messageParts: Array<{
+    text: string;
+    bold: boolean;
+    clickable: boolean;
+  }>;
+  type: string | null;
+  schedule: string | null;
+  buttonLabel?: string;
+}
+
+function formatActivityMessage(activity: ActivityFeedItem): FormattedActivity {
   const username = activity.users?.full_name || activity.users?.username || 'Someone';
-  const extraData = activity.extra_data || {};
+  const metadata = activity.extra_data || {};
   
   switch (activity.type) {
     case 'class_checkin':
-      if (activity.studios && extraData.class_name) {
+      if (activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string') {
+        const classMetadata = metadata as ClassActivityDetails;
         return {
           messageParts: [
             { text: `${username} took a `, bold: false, clickable: false },
-            { text: `${extraData.class_name} `, bold: true, clickable: true },
+            { text: `${classMetadata.class_name} `, bold: true, clickable: true },
             { text: 'class at ', bold: false, clickable: false },
             { text: `${activity.studios.name}`, bold: true, clickable: true },
-            { text: extraData.instructor_name ? ` with ${extraData.instructor_name}` : '', bold: true, clickable: true }
+            { text: classMetadata.instructor_name ? ` with ${classMetadata.instructor_name}` : '', bold: true, clickable: true }
           ],
-          type: extraData.class_name,
-          schedule: extraData.class_schedule ? new Date(extraData.class_schedule).toLocaleDateString('en-US', {
+          type: classMetadata.class_name,
+          schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
             month: 'long',
             day: 'numeric',
             hour: 'numeric',
@@ -75,18 +104,19 @@ function formatActivityMessage(activity: ActivityFeedItem) {
       break;
       
     case 'class_transfer':
-      if (activity.studios && extraData.class_name) {
+      if (activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string') {
+        const classMetadata = metadata as ClassActivityDetails;
         return {
           messageParts: [
             { text: 'New Transfer Available: ', bold: true, clickable: true },
             { text: `${username} gave up their spot for `, bold: false, clickable: false },
-            { text: `${extraData.class_name} `, bold: false, clickable: false },
+            { text: `${classMetadata.class_name} `, bold: false, clickable: false },
             { text: 'at ', bold: false, clickable: false },
             { text: `${activity.studios.name}. `, bold: true, clickable: true },
             { text: 'Feel free to take it!', bold: false, clickable: false }
           ],
-          type: extraData.class_name,
-          schedule: extraData.class_schedule ? new Date(extraData.class_schedule).toLocaleDateString('en-US', {
+          type: classMetadata.class_name,
+          schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
             month: 'long',
             day: 'numeric',
             hour: 'numeric',
@@ -112,9 +142,10 @@ function formatActivityMessage(activity: ActivityFeedItem) {
       
     case 'general_post':
     default:
+      const postMetadata = metadata as PostActivityDetails;
       return {
         messageParts: [
-          { text: extraData.message || extraData.title || 'Posted an update', bold: false, clickable: false }
+          { text: postMetadata.message || postMetadata.title || 'Posted an update', bold: false, clickable: false }
         ],
         type: null,
         schedule: null
@@ -122,9 +153,10 @@ function formatActivityMessage(activity: ActivityFeedItem) {
   }
   
   // Fallback
+  const fallbackMetadata = metadata as PostActivityDetails;
   return {
     messageParts: [
-      { text: extraData.message || extraData.title || 'Posted an update', bold: false, clickable: false }
+      { text: fallbackMetadata.message || fallbackMetadata.title || 'Posted an update', bold: false, clickable: false }
     ],
     type: null,
     schedule: null
@@ -179,7 +211,7 @@ export async function GET(request: NextRequest) {
     console.log('✅ Feed API: User authenticated:', user.id);
 
     // Get the user's friends (accepted friendships) if friendships table exists
-    const { data: friendships, error: friendshipsError } = await supabase
+    const { data: friendships } = await supabase
       .from('friendships')
       .select('friend_id')
       .eq('user_id', user.id)
@@ -242,7 +274,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform activities for frontend
-    const transformedActivities = (activities as any[])?.map(activity => {
+    const transformedActivities = (activities as unknown as ActivityFeedItem[])?.map(activity => {
       const formatted = formatActivityMessage(activity);
       const extraData = activity.extra_data || {};
       
@@ -255,10 +287,10 @@ export async function GET(request: NextRequest) {
         schedule: formatted.schedule,
         type: formatted.type,
         location: activity.studios?.name || '',
-        instructor: extraData.instructor_name || '',
+        instructor: 'instructor_name' in extraData ? extraData.instructor_name || '' : '',
         timestamp: getRelativeTime(activity.created_at),
-        buttonLabel: (formatted as any).buttonLabel || undefined,
-        likeCount: extraData.like_count || 0,
+        buttonLabel: formatted.buttonLabel || undefined,
+        likeCount: 'like_count' in extraData ? extraData.like_count || 0 : 0,
         activity_type: activity.type
       };
     }) || [];
