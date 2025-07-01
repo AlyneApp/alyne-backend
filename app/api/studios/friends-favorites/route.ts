@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
     // Group by studio and count likes
     const studioLikeCounts = new Map();
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     studioLikes.forEach((like: any) => {
       if (!like.studios) return;
       
