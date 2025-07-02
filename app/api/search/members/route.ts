@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     }
 
     // First, let's see how many total users exist
-    const { data: allUsers, error: countError } = await supabase
+    const { data: allUsers } = await supabase
       .from('users')
       .select('id, username, full_name')
       .limit(5);
