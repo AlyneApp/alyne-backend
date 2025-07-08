@@ -16,11 +16,47 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
 
-    // For now, we'll use a simple approach - get all users' studio likes and simulate friends
-    // TODO: Once you have a friendships table, replace this with actual friends logic
-    
-    // Get all studios with their like counts (not favorites), ordered by most likes
-    const { data: studioLikes, error } = await supabase
+    console.log(`🔍 Getting friends favorites for user: ${user.id}`);
+
+    // Step 1: Get the current user's approved friends
+    // We need to check both directions since friendships can be initiated by either user
+    const { data: friends, error: friendsError } = await supabase
+      .from('friends')
+      .select('user_id, friend_id')
+      .eq('approved', true)
+      .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
+
+    if (friendsError) {
+      console.error('Error fetching friends:', friendsError);
+      return NextResponse.json(
+        { error: 'Failed to fetch friends' },
+        { status: 500 }
+      );
+    }
+
+    // Extract friend IDs (excluding current user)
+    const friendIds = new Set<string>();
+    friends?.forEach(friendship => {
+      if (friendship.user_id === user.id) {
+        friendIds.add(friendship.friend_id);
+      } else {
+        friendIds.add(friendship.user_id);
+      }
+    });
+
+    console.log(`👥 Found ${friendIds.size} friends:`, Array.from(friendIds));
+
+    // If user has no friends, return empty array
+    if (friendIds.size === 0) {
+      console.log('User has no friends, returning empty list');
+      return NextResponse.json({
+        success: true,
+        data: [],
+      });
+    }
+
+    // Step 2: Get studios liked by the user's friends
+    const { data: studioLikes, error: likesError } = await supabase
       .from('studio_likes')
       .select(`
         studio_id,
@@ -33,12 +69,19 @@ export async function GET(request: NextRequest) {
           image_urls,
           address,
           location
+        ),
+        users (
+          id,
+          username,
+          full_name,
+          avatar_url
         )
       `)
+      .in('user_id', Array.from(friendIds))
       .not('studios', 'is', null);
 
-    if (error) {
-      console.error('Error fetching studio likes:', error);
+    if (likesError) {
+      console.error('Error fetching studio likes:', likesError);
       return NextResponse.json(
         { error: 'Failed to fetch studio likes' },
         { status: 500 }
@@ -46,20 +89,27 @@ export async function GET(request: NextRequest) {
     }
 
     if (!studioLikes || studioLikes.length === 0) {
+      console.log('No studios liked by friends');
       return NextResponse.json({
         success: true,
         data: [],
       });
     }
 
-    // Group by studio and count likes
+    console.log(`Found ${studioLikes.length} studio likes from friends`);
+
+    // Step 3: Group by studio and collect friend information for each like
     const studioLikeCounts = new Map();
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     studioLikes.forEach((like: any) => {
-      if (!like.studios) return;
+      if (!like.studios || !like.users) {
+        console.log('⚠️ Missing studio or user data in like');
+        return;
+      }
       
       const studio = like.studios;
+      const user = like.users;
       const studioId = studio.id;
       
       if (!studioLikeCounts.has(studioId)) {
@@ -67,19 +117,26 @@ export async function GET(request: NextRequest) {
           id: studio.id,
           name: studio.name,
           description: studio.description,
-          image_url: studio.image_urls?.[0] || null,
+          image_url: studio.image_urls?.[0] || null, // Take first image from array
           address: studio.address,
           location: studio.location,
           like_count: 0,
+          liked_by: [],
           created_at: like.created_at
         });
       }
       
       const studioData = studioLikeCounts.get(studioId);
       studioData.like_count += 1;
+      studioData.liked_by.push({
+        id: user.id,
+        username: user.username,
+        full_name: user.full_name,
+        avatar_url: user.avatar_url
+      });
     });
 
-    // Convert map to array and sort by like count (descending)
+    // Step 4: Convert map to array and sort by friend like count (descending)
     const sortedStudios = Array.from(studioLikeCounts.values())
       .sort((a, b) => b.like_count - a.like_count)
       .slice(0, 10) // Limit to top 10
@@ -88,6 +145,13 @@ export async function GET(request: NextRequest) {
         distance: Math.floor(Math.random() * 20) + 1, // Random distance for now
         distance_unit: 'min away'
       }));
+
+    console.log(`✅ Returning ${sortedStudios.length} friend favorite studios, top studio has ${sortedStudios[0]?.like_count || 0} friend likes`);
+    
+    // Log the first studio with its liked_by data
+    if (sortedStudios.length > 0) {
+      console.log(`First studio "${sortedStudios[0].name}" liked_by:`, sortedStudios[0].liked_by);
+    }
 
     return NextResponse.json({
       success: true,

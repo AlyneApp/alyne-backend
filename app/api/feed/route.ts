@@ -184,31 +184,22 @@ function getRelativeTime(dateString: string): string {
 }
 
 export async function GET(request: NextRequest) {
-  console.log('🔍 Feed API: Request received');
-  console.log('🔍 Feed API: URL:', request.url);
-  console.log('🔍 Feed API: Headers:', Object.fromEntries(request.headers.entries()));
-  
   try {
     // Get the user ID from the authorization header
     const authHeader = request.headers.get('authorization');
-    console.log('🔍 Feed API: Auth header exists:', !!authHeader);
     
     if (!authHeader) {
-      console.log('❌ Feed API: No authorization header');
       return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
     }
 
     const token = authHeader.replace('Bearer ', '');
-    console.log('🔍 Feed API: Token length:', token.length);
     
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
-      console.log('❌ Feed API: Auth error:', authError?.message);
+      console.error('Feed API: Authentication failed:', authError?.message);
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
-
-    console.log('✅ Feed API: User authenticated:', user.id);
 
     // Get the user's friends (accepted friendships) if friendships table exists
     const { data: friendships } = await supabase
@@ -266,7 +257,7 @@ export async function GET(request: NextRequest) {
       .limit(20);
 
     if (activitiesError) {
-      console.error('Error fetching activities:', activitiesError);
+      console.error('Feed API: Error fetching activities:', activitiesError);
       return NextResponse.json(
         { error: 'Failed to fetch activities' },
         { status: 500 }
@@ -291,7 +282,8 @@ export async function GET(request: NextRequest) {
         timestamp: getRelativeTime(activity.created_at),
         buttonLabel: formatted.buttonLabel || undefined,
         likeCount: 'like_count' in extraData ? extraData.like_count || 0 : 0,
-        activity_type: activity.type
+        activity_type: activity.type,
+        image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } : undefined
       };
     }) || [];
 

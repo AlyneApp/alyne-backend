@@ -150,6 +150,8 @@ CREATE TRIGGER activity_feed_like_count_trigger
   AFTER INSERT OR DELETE ON activity_feed_likes
   FOR EACH ROW EXECUTE FUNCTION update_activity_like_count();
 
+
+
 -- Enable Row Level Security (RLS) if needed
 -- ALTER TABLE studios ENABLE ROW LEVEL SECURITY;
 
