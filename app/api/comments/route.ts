@@ -61,6 +61,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch comments' }, { status: 500 });
     }
 
+    // Debug: Log the raw comment structure
+    console.log('🔍 Raw comment structure from Supabase:', JSON.stringify(comments?.[0], null, 2));
+
     // Transform comments for frontend
     const transformedComments = comments?.map((comment: CommentData) => ({
       id: comment.id,
