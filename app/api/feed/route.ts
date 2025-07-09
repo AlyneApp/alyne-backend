@@ -24,6 +24,8 @@ interface ActivityFeedItem {
   type: string;
   studio_id: string | null;
   extra_data: ActivityMetadata; // This maps to the JSONB field in database
+  like_count: number;
+  comment_count: number;
   created_at: string;
   users: {
     id: string;
@@ -239,6 +241,8 @@ export async function GET(request: NextRequest) {
         type,
         studio_id,
         extra_data,
+        like_count,
+        comment_count,
         created_at,
         users (
           id,
@@ -281,7 +285,8 @@ export async function GET(request: NextRequest) {
         instructor: 'instructor_name' in extraData ? extraData.instructor_name || '' : '',
         timestamp: getRelativeTime(activity.created_at),
         buttonLabel: formatted.buttonLabel || undefined,
-        likeCount: 'like_count' in extraData ? extraData.like_count || 0 : 0,
+        likeCount: activity.like_count || 0,
+        commentCount: activity.comment_count || 0,
         activity_type: activity.type,
         image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } : undefined
       };

@@ -9,11 +9,11 @@ interface UserData {
   avatar_url: string | null;
 }
 
-interface CommentData {
+interface SupabaseCommentWithUser {
   id: string;
   content: string;
   created_at: string;
-  users: UserData[];
+  users: UserData | null;
 }
 
 // GET /api/comments?activity_id=<id> - Fetch comments for an activity
@@ -65,17 +65,20 @@ export async function GET(request: NextRequest) {
     console.log('🔍 Raw comment structure from Supabase:', JSON.stringify(comments?.[0], null, 2));
 
     // Transform comments for frontend
-    const transformedComments = comments?.map((comment: CommentData) => ({
-      id: comment.id,
-      content: comment.content,
-      created_at: comment.created_at,
-      user: {
-        id: comment.users?.[0]?.id,
-        username: comment.users?.[0]?.username,
-        full_name: comment.users?.[0]?.full_name,
-        avatar_url: comment.users?.[0]?.avatar_url,
-      }
-    })) || [];
+    const transformedComments = comments?.map((comment: unknown) => {
+      const c = comment as SupabaseCommentWithUser;
+      return {
+        id: c.id,
+        content: c.content,
+        created_at: c.created_at,
+        user: {
+          id: c.users?.id,
+          username: c.users?.username,
+          full_name: c.users?.full_name,
+          avatar_url: c.users?.avatar_url,
+        }
+      };
+    }) || [];
 
     console.log(`💬 Comments API: Returning ${transformedComments.length} comments for activity ${activityId}`);
     if (transformedComments.length > 0) {
@@ -144,15 +147,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Transform comment for frontend
+    const c = comment as unknown as SupabaseCommentWithUser;
     const transformedComment = {
-      id: comment.id,
-      content: comment.content,
-      created_at: comment.created_at,
+      id: c.id,
+      content: c.content,
+      created_at: c.created_at,
       user: {
-        id: (comment as CommentData).users?.[0]?.id,
-        username: (comment as CommentData).users?.[0]?.username,
-        full_name: (comment as CommentData).users?.[0]?.full_name,
-        avatar_url: (comment as CommentData).users?.[0]?.avatar_url,
+        id: c.users?.id,
+        username: c.users?.username,
+        full_name: c.users?.full_name,
+        avatar_url: c.users?.avatar_url,
       }
     };
 
