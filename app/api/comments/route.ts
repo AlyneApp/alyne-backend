@@ -61,9 +61,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch comments' }, { status: 500 });
     }
 
-    // Debug: Log the raw comment structure
-    console.log('🔍 Raw comment structure from Supabase:', JSON.stringify(comments?.[0], null, 2));
-
     // Transform comments for frontend
     const transformedComments = comments?.map((comment: unknown) => {
       const c = comment as SupabaseCommentWithUser;
@@ -79,11 +76,6 @@ export async function GET(request: NextRequest) {
         }
       };
     }) || [];
-
-    console.log(`💬 Comments API: Returning ${transformedComments.length} comments for activity ${activityId}`);
-    if (transformedComments.length > 0) {
-      console.log(`💬 Sample comment:`, transformedComments[0]);
-    }
 
     return NextResponse.json({
       success: true,

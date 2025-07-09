@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
 
-    console.log(`🔍 Getting friends favorites for user: ${user.id}`);
+  
 
     // Step 1: Get the current user's approved friends
     // We need to check both directions since friendships can be initiated by either user
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     studioLikes.forEach((like: any) => {
       if (!like.studios || !like.users) {
-        console.log('⚠️ Missing studio or user data in like');
+        console.log('Warning: Missing studio or user data in like');
         return;
       }
       
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
         distance_unit: 'min away'
       }));
 
-    console.log(`✅ Returning ${sortedStudios.length} friend favorite studios, top studio has ${sortedStudios[0]?.like_count || 0} friend likes`);
+
     
     // Log the first studio with its liked_by data
     if (sortedStudios.length > 0) {
