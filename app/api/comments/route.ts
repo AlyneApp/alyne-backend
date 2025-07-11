@@ -138,6 +138,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create comment' }, { status: 500 });
     }
 
+    // Update the comment_count in activity_feed table
+    const { data: currentActivity, error: fetchError } = await supabase
+      .from('activity_feed')
+      .select('comment_count')
+      .eq('id', activity_id)
+      .single();
+
+    if (!fetchError && currentActivity) {
+      const newCount = (currentActivity.comment_count || 0) + 1;
+      
+      const { error: updateError } = await supabase
+        .from('activity_feed')
+        .update({ comment_count: newCount })
+        .eq('id', activity_id);
+
+      if (updateError) {
+        console.error('Error updating comment count:', updateError);
+        // Don't fail the request, just log the error
+      }
+    }
+
     // Transform comment for frontend
     const c = comment as unknown as SupabaseCommentWithUser;
     const transformedComment = {
