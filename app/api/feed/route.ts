@@ -203,33 +203,46 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
 
-    // Get the user's friends (accepted friendships) if friendships table exists
-    const { data: friendships } = await supabase
-      .from('friendships')
-      .select('friend_id')
-      .eq('user_id', user.id)
-      .eq('status', 'accepted');
+    // Get the user's friends (approved friendships)
+    // Check both directions since friendships can be initiated by either user
+    const { data: friends } = await supabase
+      .from('friends')
+      .select('user_id, friend_id')
+      .eq('approved', true)
+      .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
 
-    // For demo purposes, if no friends exist or friendships table doesn't exist, show sample activities from all users
-    const friendIds = friendships?.map(f => f.friend_id) || [];
-    let userIds = friendIds;
+    // Extract friend IDs (excluding current user)
+    const friendIds = new Set<string>();
+    friends?.forEach(friendship => {
+      if (friendship.user_id === user.id) {
+        friendIds.add(friendship.friend_id);
+      } else {
+        friendIds.add(friendship.user_id);
+      }
+    });
+
+    const friendIdsArray = Array.from(friendIds);
     
-    if (userIds.length === 0) {
-      // Get some sample users for demo
-      const { data: sampleUsers } = await supabase
-        .from('users')
-        .select('id')
-        .neq('id', user.id)
-        .limit(5);
-      
-      userIds = sampleUsers?.map(u => u.id) || [];
-    }
-
-    if (userIds.length === 0) {
+    console.log(`👥 Found ${friendIdsArray.length} friends:`, friendIdsArray);
+    
+    if (friendIdsArray.length === 0) {
+      // No friends = empty feed
+      console.log('User has no friends, returning empty feed');
       return NextResponse.json({
         success: true,
         data: [],
       });
+    }
+
+    // Debug: Check if activity_feed table has any data at all
+    const { data: allActivities, error: debugError } = await supabase
+      .from('activity_feed')
+      .select('id, user_id, type')
+      .limit(5);
+    
+    console.log(`🔍 Debug: Total activities in activity_feed table:`, allActivities?.length || 0);
+    if (debugError) {
+      console.log(`🔍 Debug: Error querying activity_feed:`, debugError);
     }
 
     // Fetch activity feed from friends
@@ -256,7 +269,7 @@ export async function GET(request: NextRequest) {
           address
         )
       `)
-      .in('user_id', userIds)
+      .in('user_id', friendIdsArray)
       .order('created_at', { ascending: false })
       .limit(20);
 
@@ -266,6 +279,11 @@ export async function GET(request: NextRequest) {
         { error: 'Failed to fetch activities' },
         { status: 500 }
       );
+    }
+
+    console.log(`📝 Found ${activities?.length || 0} activities from friends`);
+    if (activities && activities.length > 0) {
+      console.log('First activity:', activities[0]);
     }
 
     // Transform activities for frontend

@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
         { error: 'Email and password are required' },
         { status: 400 }
       );
-    }
+  }
 
     // Authenticate with Supabase
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
 
     if (profileError) {
       console.error('Profile fetch error:', profileError);
-    }
+  }
 
-    return NextResponse.json({
+  return NextResponse.json({ 
       success: true,
       user: userProfile || {
         id: authData.user.id,

@@ -59,7 +59,14 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const activityIds = searchParams.get('activity_ids')?.split(',') || [];
+    const activityIdsParam = searchParams.get('activity_ids');
+    
+    if (!activityIdsParam) {
+      return NextResponse.json({ success: true, likes: {} });
+    }
+
+    // Limit to reasonable number to avoid slow queries
+    const activityIds = activityIdsParam.split(',').slice(0, 20);
     
     if (activityIds.length === 0) {
       return NextResponse.json({ success: true, likes: {} });

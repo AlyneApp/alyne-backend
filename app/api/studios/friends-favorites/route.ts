@@ -16,8 +16,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
 
-  
-
     // Step 1: Get the current user's approved friends
     // We need to check both directions since friendships can be initiated by either user
     const { data: friends, error: friendsError } = await supabase
@@ -78,7 +76,8 @@ export async function GET(request: NextRequest) {
         )
       `)
       .in('user_id', Array.from(friendIds))
-      .not('studios', 'is', null);
+      .not('studios', 'is', null)
+      .limit(50);
 
     if (likesError) {
       console.error('Error fetching studio likes:', likesError);
@@ -142,12 +141,10 @@ export async function GET(request: NextRequest) {
       .slice(0, 10) // Limit to top 10
       .map(studio => ({
         ...studio,
-        distance: Math.floor(Math.random() * 20) + 1, // Random distance for now
+        distance: Math.floor(Math.random() * 20) + 1, // Random distance 1-20 mins for now
         distance_unit: 'min away'
       }));
 
-
-    
     // Log the first studio with its liked_by data
     if (sortedStudios.length > 0) {
       console.log(`First studio "${sortedStudios[0].name}" liked_by:`, sortedStudios[0].liked_by);
