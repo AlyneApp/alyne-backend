@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       .order('name');
 
     if (searchError) {
-      console.error('❌ Error searching studios:', searchError);
+      console.error('Error searching studios:', searchError);
       return NextResponse.json(
         { error: 'Failed to search studios' },
         { status: 500 }
@@ -94,8 +94,8 @@ export async function GET(request: NextRequest) {
       class_type: studio.type || 'Fitness',
       distance: `${Math.floor(Math.random() * 20) + 1} min away`,
       image_url: studio.image_urls?.[0] || 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=400&q=80',
-      rating: Number((Math.random() * 1.5 + 3.5).toFixed(1)), // Random rating between 3.5-5.0
-      price_range: ['$$', '$$$', '$$$$'][Math.floor(Math.random() * 3)], // Random price range
+      rating: Number((Math.random() * 1.5 + 3.5).toFixed(1)),
+      price_range: ['$$', '$$$', '$$$$'][Math.floor(Math.random() * 3)],
     }));
 
     return NextResponse.json({
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ Studio search API error:', error);
+    console.error('Studio search API error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

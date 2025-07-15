@@ -155,7 +155,6 @@ export async function POST(request: NextRequest) {
 
       if (updateError) {
         console.error('Error updating comment count:', updateError);
-        // Don't fail the request, just log the error
       }
     }
 
