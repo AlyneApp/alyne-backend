@@ -235,14 +235,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Debug: Check if activity_feed table has any data at all
-    const { data: allActivities, error: debugError } = await supabase
+    const { error: debugError } = await supabase
       .from('activity_feed')
       .select('id, user_id, type')
       .limit(5);
     
-          // Debug: Total activities in activity_feed table
     if (debugError) {
-              // Debug: Error querying activity_feed
+      console.error('Debug: Error querying activity_feed:', debugError);
     }
 
     // Fetch activity feed from friends

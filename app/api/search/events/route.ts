@@ -62,7 +62,7 @@ async function serpApiCall(params: Record<string, string>): Promise<SerpApiRespo
       if (errorData.error) {
         errorMessage = `SerpApi error: ${errorData.error}`;
       }
-    } catch (e) {
+    } catch {
       if (errorText.includes('Invalid API key')) {
         errorMessage = 'Invalid SerpApi key';
       } else if (errorText.includes('quota')) {
@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let params: Record<string, string> = {
+    const params: Record<string, string> = {
       engine: 'google_events',
     };
 
