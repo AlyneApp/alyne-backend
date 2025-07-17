@@ -38,7 +38,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ## API Endpoints
 
 - `/api/auth/*` - Authentication endpoints
-- `/api/search/events` - Events search via Google Events API
+- `/api/search/events` - Events search (coming soon)
 - `/api/studios/*` - Studio management
 - `/api/search/*` - Search functionality
 - `/api/comments` - Comments system
