@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log('🔍 Searching for studios with query:', query);
+    // Searching for studios with query
 
     // Build the query
     let queryBuilder = supabase
@@ -77,14 +77,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (!studios || studios.length === 0) {
-      console.log('📭 No studios found for query:', query);
+      // No studios found for query
       return NextResponse.json({
         success: true,
         data: [],
       });
     }
 
-    console.log('🏢 Found studios:', studios.map(s => ({ name: s.name, id: s.id, type: s.type })));
+    // Found studios for search query
 
     // Transform the data for frontend compatibility
     const studiosWithDistance = studios.map((studio: Studio) => ({

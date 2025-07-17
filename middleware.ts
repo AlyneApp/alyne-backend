@@ -9,6 +9,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
   '/api/studios/featured', // Allow public access to featured studios
+  '/api/search/events', // Allow public access to events search
 ];
 
 export async function middleware(request: NextRequest) {

@@ -42,11 +42,11 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    console.log(`👥 Found ${friendIds.size} friends:`, Array.from(friendIds));
+    // Found friends for user
 
     // If user has no friends, return empty array
     if (friendIds.size === 0) {
-      console.log('User has no friends, returning empty list');
+      // User has no friends, returning empty list
       return NextResponse.json({
         success: true,
         data: [],
@@ -88,14 +88,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (!studioLikes || studioLikes.length === 0) {
-      console.log('No studios liked by friends');
+      // No studios liked by friends
       return NextResponse.json({
         success: true,
         data: [],
       });
     }
 
-    console.log(`Found ${studioLikes.length} studio likes from friends`);
+    // Found studio likes from friends
 
     // Step 3: Group by studio and collect friend information for each like
     const studioLikeCounts = new Map();

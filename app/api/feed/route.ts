@@ -223,11 +223,11 @@ export async function GET(request: NextRequest) {
 
     const friendIdsArray = Array.from(friendIds);
     
-    console.log(`👥 Found ${friendIdsArray.length} friends:`, friendIdsArray);
+    // Found friends for user
     
     if (friendIdsArray.length === 0) {
       // No friends = empty feed
-      console.log('User has no friends, returning empty feed');
+      // User has no friends, returning empty feed
       return NextResponse.json({
         success: true,
         data: [],
@@ -240,9 +240,9 @@ export async function GET(request: NextRequest) {
       .select('id, user_id, type')
       .limit(5);
     
-    console.log(`🔍 Debug: Total activities in activity_feed table:`, allActivities?.length || 0);
+          // Debug: Total activities in activity_feed table
     if (debugError) {
-      console.log(`🔍 Debug: Error querying activity_feed:`, debugError);
+              // Debug: Error querying activity_feed
     }
 
     // Fetch activity feed from friends
@@ -281,9 +281,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`📝 Found ${activities?.length || 0} activities from friends`);
+          // Found activities from friends
     if (activities && activities.length > 0) {
-      console.log('First activity:', activities[0]);
+              // First activity processed
     }
 
     // Transform activities for frontend

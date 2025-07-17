@@ -2,8 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// Helper function to enhance users with friendship data
-async function enhanceUsersWithFriendshipData(users: Array<{
+// Helper function to enhance users with follow data
+async function enhanceUsersWithFollowData(users: Array<{
   id: string;
   username: string;
   full_name: string | null;
@@ -12,80 +12,42 @@ async function enhanceUsersWithFriendshipData(users: Array<{
 }>, currentUserId: string) {
   if (!users || users.length === 0) return [];
 
-  // Get all friend relationships in one query
+  // Get all follow relationships in one query
   const userIds = users.map(u => u.id);
-  const allUserIds = [...userIds, currentUserId];
   
-  const { data: friendshipData, error: friendshipError } = await supabase
+  const { data: followData, error: followError } = await supabase
     .from('friends')
     .select('user_id, friend_id')
-    .in('user_id', allUserIds)
-    .in('friend_id', allUserIds)
+    .in('user_id', [currentUserId, ...userIds])
+    .in('friend_id', [currentUserId, ...userIds])
     .eq('approved', true);
 
-  if (friendshipError) {
-    console.error('⚠️ Error getting friendship data:', friendshipError);
-    throw new Error('Failed to get friendship data');
+  if (followError) {
+    console.error('⚠️ Error getting follow data:', followError);
+    throw new Error('Failed to get follow data');
   }
-
-  console.log('🤝 All friendship data:', friendshipData);
 
   // Process each user
   const enhancedUsers = users.map(searchUser => {
-    // Calculate friend count for this user
-    const friendCount = friendshipData.filter(f => 
-      (f.user_id === searchUser.id || f.friend_id === searchUser.id)
+    // Calculate follower count for this user
+    const followerCount = followData.filter(f => 
+      f.friend_id === searchUser.id
     ).length;
 
     // Check if current user follows this search user
-    const i_follow = friendshipData.some(f => 
+    const i_follow = followData.some(f => 
       f.user_id === currentUserId && f.friend_id === searchUser.id
     );
-
-    // Check if search user follows current user
-    const follows_me = friendshipData.some(f => 
-      f.user_id === searchUser.id && f.friend_id === currentUserId
-    );
-
-    // Calculate mutual friends
-    const currentUserFriends = new Set();
-    const searchUserFriends = new Set();
-
-    // Get current user's friends
-    friendshipData.forEach(f => {
-      if (f.user_id === currentUserId) currentUserFriends.add(f.friend_id);
-      if (f.friend_id === currentUserId) currentUserFriends.add(f.user_id);
-    });
-
-    // Get search user's friends
-    friendshipData.forEach(f => {
-      if (f.user_id === searchUser.id) searchUserFriends.add(f.friend_id);
-      if (f.friend_id === searchUser.id) searchUserFriends.add(f.user_id);
-    });
-
-    // Count mutual friends
-    const mutualFriends = [...currentUserFriends].filter(friendId => 
-      searchUserFriends.has(friendId)
-    ).length;
 
     const enhancedUser = {
       id: searchUser.id,
       username: searchUser.username,
       full_name: searchUser.full_name,
       avatar_url: searchUser.avatar_url,
-      follower_count: friendCount,
-      mutual_friends: mutualFriends,
+      followers_count: followerCount,
+      is_following: i_follow,
       i_follow,
-      follows_me,
     };
-
-    console.log('✨ Enhanced user:', {
-      username: enhancedUser.username,
-      follower_count: enhancedUser.follower_count,
-      mutual_friends: enhancedUser.mutual_friends,
-      i_follow: enhancedUser.i_follow,
-      follows_me: enhancedUser.follows_me,
-    });
 
     return enhancedUser;
   });
@@ -119,7 +81,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log('🔍 Searching for members with query:', query, 'for user:', user.id);
+    // Searching for members with query
 
     // Search for users with their friend counts calculated directly
     const { data: users } = await supabase
@@ -137,19 +99,19 @@ export async function GET(request: NextRequest) {
       .order('username');
 
     if (!users || users.length === 0) {
-      console.log('📭 No users found for query:', query);
+      // No users found for query
       return NextResponse.json({
         success: true,
         data: [],
       });
     }
 
-    console.log('👥 Found users:', users.map(u => ({ username: u.username, id: u.id })));
+    // Found users for search query
 
-    // Enhance users with friendship data
-    const enhancedUsers = await enhanceUsersWithFriendshipData(users, user.id);
+    // Enhance users with follow data
+    const enhancedUsers = await enhanceUsersWithFollowData(users, user.id);
 
-    console.log('📋 Final response data count:', enhancedUsers.length);
+    // Final response data count
 
     return NextResponse.json({
       success: true,
@@ -198,9 +160,19 @@ export async function POST(request: NextRequest) {
       .limit(4)
       .order('followers_count', { ascending: false });
 
+    if (!users || users.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+      });
+    }
+
+    // Enhance users with follow data
+    const enhancedUsers = await enhanceUsersWithFollowData(users, user.id);
+
     return NextResponse.json({
       success: true,
-      data: users || [],
+      data: enhancedUsers,
     });
 
   } catch (error) {
