@@ -31,8 +31,8 @@ export async function GET(
 
     // Filter out any null users and format the response
     const users = saves
-      ?.filter((save: any) => save.users)
-      .map((save: any) => save.users)
+      ?.filter((save) => save.users)
+      .map((save) => save.users)
       .filter(Boolean) || [];
 
     return NextResponse.json({ 

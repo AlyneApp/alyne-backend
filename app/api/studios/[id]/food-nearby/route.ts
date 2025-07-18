@@ -103,8 +103,22 @@ export async function GET(
       return NextResponse.json({ success: true, data: mockFoodPlaces });
     }
 
+    // Define Google Places API response types
+    interface GooglePlace {
+      place_id: string;
+      name: string;
+      distance?: number;
+      rating?: number;
+      price_level?: number;
+      vicinity?: string;
+      photos?: Array<{
+        photo_reference: string;
+      }>;
+      types?: string[];
+    }
+
     // Transform the places data for frontend
-    const foodPlaces = searchData.results.slice(0, 10).map((place: any) => {
+    const foodPlaces = searchData.results.slice(0, 10).map((place: GooglePlace) => {
       let imageUrl = null;
       
       // Try to get photo from Google Places API
