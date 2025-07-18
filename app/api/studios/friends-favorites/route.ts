@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     // Step 2: Get studios liked by the user's friends
     const { data: studioLikes, error: likesError } = await supabase
-      .from('studio_likes')
+      .from('studio_saves')
       .select(`
         studio_id,
         user_id,
