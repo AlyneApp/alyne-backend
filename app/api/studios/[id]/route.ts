@@ -72,6 +72,13 @@ export async function GET(
       image_urls_length: transformedStudio.image_urls?.length
     });
 
+    console.log('📸 Studio API - Raw studio data from DB:', {
+      id: studio.id,
+      name: studio.name,
+      image_urls: studio.image_urls,
+      image_urls_length: studio.image_urls?.length
+    });
+
     return NextResponse.json({ 
       success: true, 
       data: transformedStudio 
