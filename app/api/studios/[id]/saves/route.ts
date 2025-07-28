@@ -14,7 +14,7 @@ export async function GET(
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
@@ -40,11 +40,11 @@ export async function GET(
     });
   } catch (error) {
     console.error('Error in studio saves GET API:', error);
-    return NextResponse.json(
+      return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+        { status: 500 }
+      );
+    }
 }
 
 export async function POST(
@@ -136,8 +136,8 @@ export async function POST(
       isSaved = true;
     }
 
-    return NextResponse.json({
-      success: true,
+    return NextResponse.json({ 
+      success: true, 
       data: {
         isSaved,
         studioId,
