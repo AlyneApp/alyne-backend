@@ -1071,88 +1071,56 @@ export class WebScraper {
     let classes = [];
     
     try {
+      console.log('🔍 About to start page.$$eval for class extraction...');
+      
       // Add timeout to page.$$eval to prevent hanging
       const extractionPromise = page.$$eval(
         'tr[data-test-row]',
         (rows, { targetDate, targetDateString, studioAddress }) => {
           console.log('🔍 Starting Barry\'s table scraping evaluation...');
+          console.log(`🔍 DEBUG: Found ${rows.length} rows with tr[data-test-row] selector`);
           
-          // Debug: Log the page structure
-          console.log('🔍 Page title:', document.title);
-          console.log('🔍 Page URL:', window.location.href);
+          // Log the first few rows to see their structure
+          const firstFewRows = rows.slice(0, 3).map((row, index) => ({
+            index,
+            textContent: row.textContent?.trim().substring(0, 100) || '',
+            className: row.className,
+            attributes: Array.from(row.attributes).map(attr => `${attr.name}="${attr.value}"`).join(' ')
+          }));
+          console.log('🔍 DEBUG: First few rows:', firstFewRows);
           
-          // Look for table rows that contain class information
-          const allRows = Array.from(rows);
-          console.log(`🔍 Found ${allRows.length} table rows with data-test-row`);
-          
-          // If no rows found, try alternative selectors
-          if (allRows.length === 0) {
-            console.log('🔍 No data-test-row found, trying alternative selectors...');
-            
-            // Try different table row selectors
-            const alternativeRows = document.querySelectorAll('tr, .schedule-row, .class-row, [class*="row"]');
-            console.log(`🔍 Found ${alternativeRows.length} alternative rows`);
-            
-            // Log the first few rows to see their structure
-            for (let i = 0; i < Math.min(3, alternativeRows.length); i++) {
-              const row = alternativeRows[i];
-              console.log(`🔍 Row ${i + 1} HTML:`, row.outerHTML.substring(0, 200) + '...');
-            }
-            
-            // Try to find any elements that might contain class information
-            const allElements = document.querySelectorAll('*');
-            console.log(`🔍 Total elements on page: ${allElements.length}`);
-            
-            // Look for elements with class-related text
-            const classElements = Array.from(allElements).filter(el => {
-              const text = el.textContent?.toLowerCase() || '';
-              return text.includes('class') || text.includes('session') || text.includes('workout') || text.includes('min');
-            });
-            console.log(`🔍 Found ${classElements.length} elements with class-related text`);
-            
-            // Log some examples
-            for (let i = 0; i < Math.min(5, classElements.length); i++) {
-              const el = classElements[i];
-              console.log(`🔍 Class element ${i + 1}:`, el.outerHTML.substring(0, 200) + '...');
-            }
-          }
-          
-          // Use the rows we found (either data-test-row or alternative rows)
-          const alternativeRows = rows.length > 0 ? rows : document.querySelectorAll('tr');
-          console.log(`🔍 Processing ${alternativeRows.length} total rows`);
-          
-          return Array.from(alternativeRows).map((row, index) => {
+          return Array.from(rows).map((row, index) => {
             console.log(`🔍 Processing row ${index + 1}`);
             
             // Get time from first cell
             const timeCell = row.querySelector('td:first-child .BoldLabel-sc-ha1dsk');
             const time = timeCell?.textContent?.trim() || '';
-            console.log(`🔍 Time: "${time}"`);
+            console.log(`🔍 Row ${index + 1} - Time: "${time}"`);
             
             // Get duration from first cell
             const durationCell = row.querySelector('td:first-child .StyledMeta-sc-1tw3zxx');
             const duration = durationCell?.textContent?.trim() || '';
-            console.log(`🔍 Duration: "${duration}"`);
+            console.log(`🔍 Row ${index + 1} - Duration: "${duration}"`);
             
             // Get location from first cell
             const locationCell = row.querySelector('td:first-child .StyledLocationData-sc-1999s1s');
             const location = locationCell?.textContent?.trim() || '';
-            console.log(`🔍 Location: "${location}"`);
+            console.log(`🔍 Row ${index + 1} - Location: "${location}"`);
             
             // Filter by studio address location
-            console.log(`🔍 Checking location filter - Studio address: "${studioAddress}", Class location: "${location}"`);
+            console.log(`🔍 Row ${index + 1} - Checking location filter - Studio address: "${studioAddress}", Class location: "${location}"`);
             if (studioAddress && location) {
               // Extract location keywords from studio address (e.g., "Brooklyn Heights" from full address)
               const addressLower = studioAddress.toLowerCase();
               const locationLower = location.toLowerCase();
               
-              console.log(`🔍 Address lower: "${addressLower}", Location lower: "${locationLower}"`);
+              console.log(`🔍 Row ${index + 1} - Address lower: "${addressLower}", Location lower: "${locationLower}"`);
               
               // Check if the class location matches any part of the studio address
               const addressWords = addressLower.split(/[,\s]+/).filter(word => word.length > 2);
               const locationWords = locationLower.split(/[,\s]+/).filter(word => word.length > 2);
               
-              console.log(`🔍 Address words: [${addressWords.join(', ')}], Location words: [${locationWords.join(', ')}]`);
+              console.log(`🔍 Row ${index + 1} - Address words: [${addressWords.join(', ')}], Location words: [${locationWords.join(', ')}]`);
               
               const hasMatchingLocation = addressWords.some(addrWord => 
                 locationWords.some(locWord => 
@@ -1160,37 +1128,27 @@ export class WebScraper {
                 )
               );
               
-              console.log(`🔍 Has matching location: ${hasMatchingLocation}`);
+              console.log(`🔍 Row ${index + 1} - Has matching location: ${hasMatchingLocation}`);
               
               if (!hasMatchingLocation) {
-                console.log(`❌ Skipping class - location "${location}" doesn't match studio address "${studioAddress}"`);
+                console.log(`❌ Row ${index + 1} - Skipping class - location "${location}" doesn't match studio address "${studioAddress}"`);
                 return null;
               }
               
-              console.log(`✅ Class location "${location}" matches studio address "${studioAddress}"`);
+              console.log(`✅ Row ${index + 1} - Class location "${location}" matches studio address "${studioAddress}"`);
             } else {
-              console.log(`⚠️ No filtering - studioAddress: "${studioAddress}", location: "${location}"`);
+              console.log(`⚠️ Row ${index + 1} - No filtering - studioAddress: "${studioAddress}", location: "${location}"`);
             }
             
             // Get class name from second cell - be more specific to avoid icons
             const classButton = row.querySelector('button[data-test-button*="class-details"] .ButtonLabel-sc-vvc4oq');
             let name = classButton?.textContent?.trim() || '';
-            
-            // If the name contains unusual characters, try to get just the text nodes
-            if (classButton && (name.includes('🚲') || name.includes('🏃') || name.includes('💪'))) {
-              // Get only text nodes, excluding any icon elements
-              const textNodes = Array.from(classButton.childNodes)
-                .filter(node => node.nodeType === Node.TEXT_NODE)
-                .map(node => node.textContent?.trim())
-                .filter(text => text && text.length > 0)
-                .join(' ');
-              name = textNodes || name;
-            }
-            console.log(`🔍 Class name: "${name}"`);
+            console.log(`🔍 Row ${index + 1} - Class name: "${name}"`);
             
             // Get instructor from second cell
             const instructorButton = row.querySelector('button[data-test-button*="instructor-details"] .ButtonLabel-sc-vvc4oq');
             let instructor = instructorButton?.textContent?.trim() || '';
+            console.log(`🔍 Row ${index + 1} - Instructor: "${instructor}"`);
             
             // Enhanced instructor selector to catch more instructor elements
             if (!instructor) {
@@ -1216,14 +1174,14 @@ export class WebScraper {
                       /[a-zA-Z]/.test(potentialInstructor)) { // Contains letters
                     
                     instructor = potentialInstructor;
-                    console.log(`✅ Found instructor with selector "${selector}": "${instructor}"`);
+                    console.log(`✅ Row ${index + 1} - Found instructor with selector "${selector}": "${instructor}"`);
                     break;
                   }
                 }
               }
             }
             
-            console.log(`🔍 Instructor: "${instructor}"`);
+            console.log(`🔍 Row ${index + 1} - Final instructor: "${instructor}"`);
             
             // Clean up class name (remove duration and any icons/special characters)
             let cleanName = name;
@@ -1243,21 +1201,21 @@ export class WebScraper {
               .replace(/\s+/g, ' ') // Replace multiple spaces with single space
               .trim();
             
-            console.log(`🔍 Clean class name: "${cleanName}"`);
+            console.log(`🔍 Row ${index + 1} - Clean class name: "${cleanName}"`);
             
             // Validate that this class is for the target date
             const pageHeader = document.querySelector('h1');
             const headerText = pageHeader?.textContent || '';
-            console.log(`🔍 Page header: "${headerText}"`);
+            console.log(`🔍 Row ${index + 1} - Page header: "${headerText}"`);
             
             // Check if the active date button matches our target date
             const activeDateButton = document.querySelector('button[data-test-date-button*="active"]');
             const activeButtonDate = activeDateButton?.getAttribute('data-test-date-button') || '';
-            console.log(`🔍 Active date button: "${activeButtonDate}"`);
+            console.log(`🔍 Row ${index + 1} - Active date button: "${activeButtonDate}"`);
             
             // Check if the page header contains the target date or if the active button matches
             const targetDay = targetDateString.split('/')[1]; // Get the day part
-            console.log(`🔍 Target day: ${targetDay}, Active button: "${activeButtonDate}", Header: "${headerText}"`);
+            console.log(`🔍 Row ${index + 1} - Target day: ${targetDay}, Active button: "${activeButtonDate}", Header: "${headerText}"`);
             
             const isTargetDate = headerText.includes(targetDate) || 
                                headerText.includes(targetDateString) ||
@@ -1265,13 +1223,13 @@ export class WebScraper {
                                activeButtonDate.includes(`active-${targetDay}`);
             
             if (!isTargetDate) {
-              console.log(`❌ Skipping class - not for target date ${targetDateString} (header: "${headerText}", active button: "${activeButtonDate}")`);
+              console.log(`❌ Row ${index + 1} - Skipping class - not for target date ${targetDateString} (header: "${headerText}", active button: "${activeButtonDate}")`);
               return null;
             }
             
-            console.log(`✅ Including class for target date ${targetDateString}`);
+            console.log(`✅ Row ${index + 1} - Including class for target date ${targetDateString}`);
             
-            return {
+            const result = {
               name: cleanName,
               time,
               instructor,
@@ -1279,6 +1237,9 @@ export class WebScraper {
               price: '',
               classDate: targetDate
             };
+            
+            console.log(`🔍 Row ${index + 1} - Final result:`, result);
+            return result;
           }).filter(Boolean); // Remove null entries
         },
         { targetDate: targetDateString, targetDateString, studioAddress },
@@ -1286,6 +1247,7 @@ export class WebScraper {
       );
       
       classes = await extractionPromise; // Assign the result to the 'classes' variable
+      console.log(`🔍 page.$$eval completed, found ${classes.length} classes`);
       console.log(`✅ Found ${classes.length} classes using Barry's table scraper`);
       
       // Convert to ScrapedClass format (filter out null values)
