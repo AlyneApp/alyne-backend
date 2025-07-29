@@ -901,12 +901,26 @@ export class WebScraper {
             const roomButton = await page.$(selector);
             if (roomButton) {
               console.log(`✅ Found room filter button with selector: "${selector}"`);
-              await roomButton.click();
-              await WebScraper.delay(500);
-              roomFilterClicked = true;
-              break;
+              
+              // Try to click the button
+              await page.evaluate((el) => (el as HTMLElement).click(), roomButton);
+              console.log(`✅ Clicked room filter button`);
+              
+              // Wait for the dropdown to appear
+              await WebScraper.delay(1000);
+              
+              // Check if the dropdown actually appeared by looking for the ul with location options
+              const dropdownUl = await page.$('ul.StyledListNavigation-sc-85emb3');
+              if (dropdownUl) {
+                console.log(`✅ Dropdown appeared after clicking Rooms button`);
+                roomFilterClicked = true;
+                break;
+              } else {
+                console.log(`⚠️ Dropdown did not appear after clicking Rooms button, trying next selector`);
+              }
             }
-          } catch {
+          } catch (error) {
+            console.log(`⚠️ Error with selector "${selector}": ${error instanceof Error ? error.message : 'Unknown error'}`);
             // Continue to next selector
           }
         }
@@ -951,7 +965,7 @@ export class WebScraper {
           // Now look for the specific location option using the correct selectors
           try {
             const locationOptions = await page.$$eval(
-              'li[data-test-checkbox-label]',
+              'ul.StyledListNavigation-sc-85emb3 div[data-test-checkbox-label]',
               (elements, targetLocation) => {
                 return elements.map(el => {
                   const checkboxLabel = el.getAttribute('data-test-checkbox-label');
