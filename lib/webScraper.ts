@@ -1076,7 +1076,7 @@ export class WebScraper {
       // Add timeout to page.$$eval to prevent hanging
       const extractionPromise = page.$$eval(
         'tr[data-test-row]',
-        (rows, { targetDate, targetDateString, studioAddress }) => {
+        (rows, { targetDate, studioAddress }) => {
           console.log('🔍 Starting Barry\'s table scraping evaluation...');
           console.log(`🔍 DEBUG: Found ${rows.length} rows with tr[data-test-row] selector`);
           
@@ -1159,7 +1159,7 @@ export class WebScraper {
             return result;
           }).filter(Boolean); // Remove null entries
         },
-        { targetDate: targetDateString, targetDateString, studioAddress },
+        { targetDate: targetDateString, studioAddress },
         { timeout: 20000 } // Add timeout for page.$$eval
       );
       
