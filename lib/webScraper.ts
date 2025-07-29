@@ -954,7 +954,7 @@ export class WebScraper {
           
           // Look for location options - find actual checkboxes with location names
           const locationOptions = await page.$$eval(
-            'input[type="checkbox"][data-test-checkbox]',
+            'ul.StyledListNavigation-sc-85emb3 input[type="checkbox"]',
             (elements, targetLocation) => {
               return elements.map((el, index) => {
                 const checkboxValue = el.getAttribute('data-test-checkbox');
