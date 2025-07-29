@@ -954,16 +954,17 @@ export class WebScraper {
           
           // Look for location options
           const locationOptions = await page.$$eval(
-            'div[data-test-checkbox-label]',
+            'input[data-test-checkbox]',
             (elements, targetLocation) => {
               return elements.map((el, index) => {
-                const checkboxLabel = el.getAttribute('data-test-checkbox-label');
-                const textContent = el.textContent?.trim() || '';
+                const checkboxValue = el.getAttribute('data-test-checkbox');
+                const nameValue = el.getAttribute('name');
                 return {
                   index,
-                  checkboxLabel,
-                  textContent,
-                  matches: textContent.toLowerCase().includes(targetLocation.toLowerCase())
+                  checkboxValue,
+                  nameValue,
+                  matches: checkboxValue?.toLowerCase().includes(targetLocation.toLowerCase()) || 
+                           nameValue?.toLowerCase().includes(targetLocation.toLowerCase())
                 };
               });
             },
@@ -976,31 +977,37 @@ export class WebScraper {
           const matchingLocation = locationOptions.find(option => option.matches);
           
           if (matchingLocation) {
-            console.log(`✅ Found matching location: "${matchingLocation.textContent}"`);
+            console.log(`✅ Found matching location: "${matchingLocation.checkboxValue || matchingLocation.nameValue}"`);
             
             // Click the checkbox for this location
-            const locationCheckbox = await page.$(`input[data-test-checkbox="${matchingLocation.textContent}"]`);
+            const locationCheckbox = await page.$(`input[data-test-checkbox="${matchingLocation.checkboxValue}"]`);
             if (locationCheckbox) {
               // Check if it's already checked to avoid toggling off
               const isChecked = await page.evaluate((el) => (el as HTMLInputElement).checked, locationCheckbox);
               
               if (!isChecked) {
-                await page.evaluate((el) => (el as HTMLElement).click(), locationCheckbox);
-                console.log(`✅ Clicked checkbox for location: "${matchingLocation.textContent}"`);
+                // Click the checkbox and trigger change event
+                await page.evaluate((el) => {
+                  (el as HTMLInputElement).click();
+                  // Trigger change event
+                  const event = new Event('change', { bubbles: true });
+                  el.dispatchEvent(event);
+                }, locationCheckbox);
+                console.log(`✅ Clicked checkbox for location: "${matchingLocation.checkboxValue || matchingLocation.nameValue}"`);
                 
                 // Wait for the filter to apply
                 await WebScraper.delay(1000);
-                console.log(`✅ Location filtering applied for: "${matchingLocation.textContent}"`);
+                console.log(`✅ Location filtering applied for: "${matchingLocation.checkboxValue || matchingLocation.nameValue}"`);
               } else {
-                console.log(`✅ Checkbox already checked for location: "${matchingLocation.textContent}"`);
+                console.log(`✅ Checkbox already checked for location: "${matchingLocation.checkboxValue || matchingLocation.nameValue}"`);
               }
             } else {
-              console.log(`⚠️ Could not find checkbox for location: "${matchingLocation.textContent}"`);
+              console.log(`⚠️ Could not find checkbox for location: "${matchingLocation.checkboxValue || matchingLocation.nameValue}"`);
               
               // Try alternative selectors
               const alternativeSelectors = [
-                `input[name="${matchingLocation.textContent}"]`,
-                `input[type="checkbox"][name="${matchingLocation.textContent}"]`
+                `input[name="${matchingLocation.nameValue}"]`,
+                `input[type="checkbox"][name="${matchingLocation.nameValue}"]`
               ];
               
               let checkboxFound = false;
@@ -1009,7 +1016,13 @@ export class WebScraper {
                 if (altCheckbox) {
                   const isChecked = await page.evaluate((el) => (el as HTMLInputElement).checked, altCheckbox);
                   if (!isChecked) {
-                    await page.evaluate((el) => (el as HTMLElement).click(), altCheckbox);
+                    // Click the checkbox and trigger change event
+                    await page.evaluate((el) => {
+                      (el as HTMLInputElement).click();
+                      // Trigger change event
+                      const event = new Event('change', { bubbles: true });
+                      el.dispatchEvent(event);
+                    }, altCheckbox);
                     console.log(`✅ Clicked checkbox using alternative selector: "${selector}"`);
                   } else {
                     console.log(`✅ Checkbox already checked using alternative selector: "${selector}"`);
@@ -1022,9 +1035,9 @@ export class WebScraper {
               if (checkboxFound) {
                 // Wait for the filter to apply
                 await WebScraper.delay(1000);
-                console.log(`✅ Location filtering applied for: "${matchingLocation.textContent}"`);
+                console.log(`✅ Location filtering applied for: "${matchingLocation.checkboxValue || matchingLocation.nameValue}"`);
               } else {
-                console.log(`⚠️ All checkbox selectors failed for location: "${matchingLocation.textContent}"`);
+                console.log(`⚠️ All checkbox selectors failed for location: "${matchingLocation.checkboxValue || matchingLocation.nameValue}"`);
               }
             }
           } else {
