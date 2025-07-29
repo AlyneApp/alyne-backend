@@ -66,15 +66,11 @@ export async function GET(
       console.log('🌐 Attempting web scraping for:', websiteUrl);
       try {
         const webScraper = new WebScraper();
-        const scrapingConfig = WebScraper.getScrapingConfig(studio.name, websiteUrl, studio.address);
-        console.log('🔧 Scraping config:', scrapingConfig);
+        const scrapingType = WebScraper.getScrapingConfig(websiteUrl);
+        console.log('🔧 Scraping config:', scrapingType);
         
-        if (!scrapingConfig) {
-          console.log('❌ No scraping config found for this studio');
-        }
-        
-        if (scrapingConfig) {
-          const scrapedClasses = await webScraper.scrapeClasses(scrapingConfig, startDate || undefined);
+        if (scrapingType) {
+          const scrapedClasses = await webScraper.scrapeClasses(websiteUrl, startDate || undefined, studio.address);
           
           // Transform scraped classes to match database format
           classes = scrapedClasses.map((scrapedClass) => ({
