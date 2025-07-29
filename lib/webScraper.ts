@@ -881,7 +881,7 @@ export class WebScraper {
       console.log(`🔍 Filtering by location: "${studioAddress}"`);
       try {
         // Wait for the page to load after date selection
-        await WebScraper.delay(2000);
+        await WebScraper.delay(1000);
         
         // Look for and click the "Rooms" or "Location" filter button
         const roomFilterSelectors = [
@@ -902,7 +902,7 @@ export class WebScraper {
             if (roomButton) {
               console.log(`✅ Found room filter button with selector: "${selector}"`);
               await roomButton.click();
-              await WebScraper.delay(500); // Reduced from 1000ms
+              await WebScraper.delay(500);
               roomFilterClicked = true;
               break;
             }
@@ -912,30 +912,19 @@ export class WebScraper {
         }
         
         if (roomFilterClicked) {
-          // Now look for the specific location option
+          // Wait for the dropdown to fully open
+          await WebScraper.delay(1000);
+          
+          // Now look for the specific location option using the correct selectors
           try {
             const locationOptions = await page.$$eval(
-              'li[data-test-checkbox-label], li .StyledLabel-sc-gtqer8, li label, button, .option, [role="option"], .dropdown-item, .filter-option',
+              'li[data-test-checkbox-label]',
               (elements, targetLocation) => {
                 return elements.map(el => {
-                  // Try to get text from different possible locations
-                  let text = '';
-                  
-                  // First try data-test-checkbox-label attribute
                   const checkboxLabel = el.getAttribute('data-test-checkbox-label');
-                  if (checkboxLabel) {
-                    text = checkboxLabel;
-                  } else {
-                    // Try to find text in child elements
-                    const span = el.querySelector('span');
-                    if (span) {
-                      text = span.textContent?.trim() || '';
-                    } else {
-                      text = el.textContent?.trim() || '';
-                    }
-                  }
+                  if (!checkboxLabel) return null;
                   
-                  const lowerText = text.toLowerCase();
+                  const lowerText = checkboxLabel.toLowerCase();
                   const targetLower = targetLocation.toLowerCase();
                   
                   // Check if this option matches our studio address
@@ -944,7 +933,7 @@ export class WebScraper {
                       lowerText.includes('flatiron') && targetLower.includes('flatiron')) {
                     return {
                       element: el,
-                      text: text,
+                      text: checkboxLabel,
                       matchScore: lowerText === targetLower ? 100 : 
                                  lowerText.includes(targetLower) ? 80 : 60
                     };
@@ -960,7 +949,7 @@ export class WebScraper {
               const bestMatch = locationOptions[0];
               console.log(`✅ Found location option: "${bestMatch.text}" (score: ${bestMatch.matchScore})`);
               
-              // Try to click the checkbox input specifically
+              // Click the checkbox input specifically
               try {
                 const checkboxInput = await page.$(`input[data-test-checkbox="${bestMatch.text}"]`);
                 if (checkboxInput) {
@@ -975,8 +964,7 @@ export class WebScraper {
                 console.log(`⚠️ Failed to click location option: ${clickError instanceof Error ? clickError.message : 'Unknown error'}`);
               }
               
-              await WebScraper.delay(1000); // Reduced from 2000ms
-              
+              await WebScraper.delay(1000); // Wait for filter to apply
               console.log(`✅ Successfully filtered by location: "${bestMatch.text}"`);
             } else {
               console.log(`⚠️ No location filter options found for "${studioAddress}", proceeding without filtering`);
@@ -991,9 +979,7 @@ export class WebScraper {
         console.log(`⚠️ Location filtering failed: ${error instanceof Error ? error.message : 'Unknown error'}, proceeding without filtering`);
       }
     }
-
-    // Now extract classes (after location filtering)
-    console.log('🔍 About to start page.$$eval for class extraction...');
+    
     let classes = [];
     
     try {
@@ -1228,8 +1214,8 @@ export class WebScraper {
           price: WebScraper.extractPrice(classData.price),
           start_time: classData.time,
           instructor: classData.instructor || null,
-          is_available: true,
-          total_booked: 0,
+        is_available: true,
+        total_booked: 0,
           source: 'web_scraping' as const
         }));
       
