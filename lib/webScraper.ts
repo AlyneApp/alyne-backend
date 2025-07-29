@@ -906,7 +906,7 @@ export class WebScraper {
               roomFilterClicked = true;
               break;
             }
-          } catch (e) {
+          } catch {
             // Continue to next selector
           }
         }
