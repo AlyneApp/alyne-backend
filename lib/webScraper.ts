@@ -1,4 +1,4 @@
-import { Browser, Page } from 'playwright';
+import { Browser, Page } from 'playwright-core';
 
 export interface ScrapedClass {
   id: string;
@@ -81,8 +81,21 @@ export class WebScraper {
 
   async init() {
     if (!this.browser) {
-      const { chromium } = await import('playwright');
-      this.browser = await chromium.launch({ headless: true });
+      const { chromium } = await import('playwright-core');
+      this.browser = await chromium.launch({ 
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-gpu',
+          '--single-process',
+          '--disable-extensions'
+        ]
+      });
     }
   }
 
