@@ -915,10 +915,26 @@ export class WebScraper {
           // Now look for the specific location option
           try {
             const locationOptions = await page.$$eval(
-              'button, .option, [role="option"], .dropdown-item, .filter-option',
+              'li[data-test-checkbox-label], li .StyledLabel-sc-gtqer8, li label, button, .option, [role="option"], .dropdown-item, .filter-option',
               (elements, targetLocation) => {
                 return elements.map(el => {
-                  const text = el.textContent?.trim() || '';
+                  // Try to get text from different possible locations
+                  let text = '';
+                  
+                  // First try data-test-checkbox-label attribute
+                  const checkboxLabel = el.getAttribute('data-test-checkbox-label');
+                  if (checkboxLabel) {
+                    text = checkboxLabel;
+                  } else {
+                    // Try to find text in child elements
+                    const span = el.querySelector('span');
+                    if (span) {
+                      text = span.textContent?.trim() || '';
+                    } else {
+                      text = el.textContent?.trim() || '';
+                    }
+                  }
+                  
                   const lowerText = text.toLowerCase();
                   const targetLower = targetLocation.toLowerCase();
                   
@@ -944,8 +960,21 @@ export class WebScraper {
               const bestMatch = locationOptions[0];
               console.log(`✅ Found location option: "${bestMatch.text}" (score: ${bestMatch.matchScore})`);
               
-              // Click the location option
-              await page.evaluate((el) => (el as HTMLElement).click(), bestMatch.element);
+              // Try to click the checkbox input specifically
+              try {
+                const checkboxInput = await page.$(`input[data-test-checkbox="${bestMatch.text}"]`);
+                if (checkboxInput) {
+                  await page.evaluate((el) => (el as HTMLElement).click(), checkboxInput);
+                  console.log(`✅ Clicked checkbox input for "${bestMatch.text}"`);
+                } else {
+                  // Fallback to clicking the element itself
+                  await page.evaluate((el) => (el as HTMLElement).click(), bestMatch.element);
+                  console.log(`✅ Clicked location element for "${bestMatch.text}"`);
+                }
+              } catch (clickError) {
+                console.log(`⚠️ Failed to click location option: ${clickError instanceof Error ? clickError.message : 'Unknown error'}`);
+              }
+              
               await WebScraper.delay(2000); // Wait for filter to apply
               
               console.log(`✅ Successfully filtered by location: "${bestMatch.text}"`);
