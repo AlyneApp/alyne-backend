@@ -175,7 +175,7 @@ export class WebScraper {
     try {
       // Add timeout mechanism
       const timeoutPromise = new Promise<ScrapedClass[]>((_, reject) => {
-        setTimeout(() => reject(new Error('Scraping timeout after 30 seconds')), 30000);
+        setTimeout(() => reject(new Error('Scraping timeout after 120 seconds')), 120000);
       });
 
       const scrapingPromise = this._scrapeClasses(config, date);
@@ -912,8 +912,41 @@ export class WebScraper {
         }
         
         if (roomFilterClicked) {
+          // Wait longer for the dropdown to fully open
+          await WebScraper.delay(2000);
+          
+          // Try to find the Flatiron checkbox directly first
+          try {
+            const flatironCheckbox = await page.$('input[data-test-checkbox="Flatiron"]');
+            if (flatironCheckbox) {
+              console.log('✅ Found Flatiron checkbox directly');
+              await page.evaluate((el) => (el as HTMLElement).click(), flatironCheckbox);
+              await WebScraper.delay(2000);
+              console.log('✅ Successfully clicked Flatiron checkbox');
+            } else {
+              console.log('⚠️ Flatiron checkbox not found directly, trying alternative approach');
+            }
+          } catch (directError) {
+            console.log(`⚠️ Direct checkbox approach failed: ${directError instanceof Error ? directError.message : 'Unknown error'}`);
+          }
+          
           // Now look for the specific location option
           try {
+            // First, let's debug what elements we can find
+            const debugElements = await page.$$eval(
+              'li, button, .option, [role="option"], .dropdown-item, .filter-option',
+              (elements) => {
+                return elements.slice(0, 10).map((el, index) => ({
+                  index,
+                  tagName: el.tagName,
+                  className: el.className,
+                  textContent: el.textContent?.trim().substring(0, 50) || '',
+                  attributes: Array.from(el.attributes).map(attr => `${attr.name}="${attr.value}"`).join(' ')
+                }));
+              }
+            );
+            console.log(`🔍 Debug: Found ${debugElements.length} potential elements:`, debugElements);
+            
             const locationOptions = await page.$$eval(
               'li[data-test-checkbox-label], li .StyledLabel-sc-gtqer8, li label, button, .option, [role="option"], .dropdown-item, .filter-option',
               (elements, targetLocation) => {
@@ -1208,7 +1241,7 @@ export class WebScraper {
           }).filter(Boolean); // Remove null entries
         },
         { targetDate: targetDateString, targetDateString, studioAddress },
-        { timeout: 20000 } // Add timeout for page.$$eval
+        { timeout: 60000 } // Add timeout for page.$$eval
       );
       
       classes = await extractionPromise; // Assign the result to the 'classes' variable

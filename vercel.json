@@ -1,7 +1,7 @@
 {
   "functions": {
     "app/api/studios/[id]/classes/route.ts": {
-      "maxDuration": 300
+      "maxDuration": 600
     }
   },
   "build": {
@@ -9,5 +9,6 @@
       "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1"
     }
   },
-  "installCommand": "npm install && npx playwright install chromium"
+  "installCommand": "npm install",
+  "buildCommand": "npm run build"
 } 
