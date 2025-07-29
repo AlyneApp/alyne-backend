@@ -952,9 +952,9 @@ export class WebScraper {
           // Wait for the dropdown to fully open
           await WebScraper.delay(200);
           
-          // Look for location options
+          // Look for location options - find actual checkboxes with location names
           const locationOptions = await page.$$eval(
-            'input[data-test-checkbox]',
+            'input[type="checkbox"][data-test-checkbox]',
             (elements, targetLocation) => {
               return elements.map((el, index) => {
                 const checkboxValue = el.getAttribute('data-test-checkbox');
@@ -966,12 +966,25 @@ export class WebScraper {
                   matches: checkboxValue?.toLowerCase().includes(targetLocation.toLowerCase()) || 
                            nameValue?.toLowerCase().includes(targetLocation.toLowerCase())
                 };
-              });
+              }).filter(option => option.matches); // Only return matching options
             },
             studioAddress
           );
           
-          console.log(`🔍 Found ${locationOptions.length} location options:`, locationOptions);
+          // DEBUG: Let's see ALL checkbox elements to understand what's on the page
+          const allCheckboxes = await page.$$eval(
+            'input[type="checkbox"]',
+            (elements) => {
+              return elements.map((el, index) => ({
+                index,
+                dataTestCheckbox: el.getAttribute('data-test-checkbox'),
+                name: el.getAttribute('name'),
+                id: el.getAttribute('id'),
+                className: el.className
+              }));
+            }
+          );
+          console.log(`🔍 DEBUG: Found ${allCheckboxes.length} total checkbox elements:`, allCheckboxes);
           
           // Find the matching location option
           const matchingLocation = locationOptions.find(option => option.matches);
