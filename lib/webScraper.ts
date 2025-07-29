@@ -1,4 +1,5 @@
-import { Browser, Page } from 'playwright-core';
+import puppeteer, { Browser, Page } from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 
 export interface ScrapedClass {
   id: string;
@@ -81,20 +82,13 @@ export class WebScraper {
 
   async init() {
     if (!this.browser) {
-      const { chromium } = await import('playwright-core');
-      this.browser = await chromium.launch({ 
+      // Use serverless-compatible Chromium
+      const executablePath = await chromium.executablePath();
+      
+      this.browser = await puppeteer.launch({
+        args: chromium.args,
+        executablePath,
         headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-          '--single-process',
-          '--disable-extensions'
-        ]
       });
     }
   }

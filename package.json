@@ -11,14 +11,15 @@
     "check": "npm run lint && npm run build && echo '✅ All checks passed!'"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^138.0.2",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.50.0",
     "apify-client": "^2.12.6",
     "axios": "^1.11.0",
     "cheerio": "^1.1.2",
     "next": "15.3.3",
-    "playwright-core": "^1.54.1",
     "puppeteer": "^24.15.0",
+    "puppeteer-core": "^24.15.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^3.25.64"
