@@ -1073,7 +1073,17 @@ export class WebScraper {
     try {
       console.log('🔍 About to start page.$$eval for class extraction...');
       
-      // Add timeout to page.$$eval to prevent hanging
+      // First, let's test if we can execute any JavaScript in the page
+      try {
+        const testResult = await page.evaluate(() => {
+          console.log('🔍 TEST: JavaScript execution works in page context');
+          return 'test-success';
+        });
+        console.log('🔍 TEST: Page evaluate result:', testResult);
+      } catch (error) {
+        console.log('🔍 TEST: Page evaluate failed:', error);
+      }
+      
       const extractionPromise = page.$$eval(
         'tr[data-test-row]',
         (rows, { targetDate, studioAddress }) => {
@@ -1088,6 +1098,93 @@ export class WebScraper {
             attributes: Array.from(row.attributes).map(attr => `${attr.name}="${attr.value}"`).join(' ')
           }));
           console.log('🔍 DEBUG: First few rows:', firstFewRows);
+          
+          // Also try alternative selectors
+          const alternativeRows = document.querySelectorAll('tr');
+          console.log(`🔍 DEBUG: Found ${alternativeRows.length} total tr elements`);
+          
+          const tableRows = document.querySelectorAll('table tbody tr');
+          console.log(`🔍 DEBUG: Found ${tableRows.length} table tbody tr elements`);
+          
+          if (rows.length === 0) {
+            console.log('🔍 DEBUG: No rows found with tr[data-test-row], trying alternative selectors...');
+            // Try alternative selectors
+            const altRows = document.querySelectorAll('tr[class*="StyledTableRow"]');
+            console.log(`🔍 DEBUG: Found ${altRows.length} rows with tr[class*="StyledTableRow"]`);
+            
+            if (altRows.length > 0) {
+              console.log('🔍 DEBUG: Using alternative rows');
+              return Array.from(altRows).map((row, index) => {
+                console.log(`🔍 Processing alternative row ${index + 1}`);
+                
+                // Get time from first cell - CORRECTED SELECTOR
+                const timeCell = row.querySelector('td:first-child .BoldLabel-sc-ha1dsk');
+                const time = timeCell?.textContent?.trim() || '';
+                console.log(`🔍 Alt Row ${index + 1} - Time: "${time}"`);
+                
+                // Get duration from first cell - CORRECTED SELECTOR
+                const durationCell = row.querySelector('td:first-child .StyledMeta-sc-1tw3zxx');
+                const duration = durationCell?.textContent?.trim() || '';
+                console.log(`🔍 Alt Row ${index + 1} - Duration: "${duration}"`);
+                
+                // Get location from first cell - CORRECTED SELECTOR
+                const locationCell = row.querySelector('td:first-child .StyledLocationData-sc-1999s1s');
+                const location = locationCell?.textContent?.trim() || '';
+                console.log(`🔍 Alt Row ${index + 1} - Location: "${location}"`);
+                
+                // Check if location matches our target
+                const matches = studioAddress ? location.toLowerCase().includes(studioAddress.toLowerCase()) : true;
+                console.log(`🔍 Alt Row ${index + 1} - Location match: ${matches} (target: "${studioAddress}", found: "${location}")`);
+                
+                if (!matches) {
+                  console.log(`🔍 Alt Row ${index + 1} - Skipping due to location mismatch`);
+                  return null;
+                }
+                
+                // Get class name from second cell - CORRECTED SELECTOR
+                const classButton = row.querySelector('button[data-test-button*="class-details"] .ButtonLabel-sc-vvc4oq');
+                const name = classButton?.textContent?.trim() || '';
+                console.log(`🔍 Alt Row ${index + 1} - Class name: "${name}"`);
+                
+                // Get instructor from second cell - CORRECTED SELECTOR
+                const instructorButton = row.querySelector('button[data-test-button*="instructor-details"] .ButtonLabel-sc-vvc4oq');
+                let instructor = instructorButton?.textContent?.trim() || '';
+                
+                // If no instructor button found, try the p tag (for cases like Emily Calhoun)
+                if (!instructor) {
+                  const instructorP = row.querySelector('p.LineItem-sc-kwjy1o.fKKBMd');
+                  instructor = instructorP?.textContent?.trim() || '';
+                  // Filter out duration strings
+                  if (instructor && (instructor.includes('min') || instructor.includes('50'))) {
+                    instructor = '';
+                  }
+                }
+                
+                console.log(`🔍 Alt Row ${index + 1} - Instructor: "${instructor}"`);
+                
+                // Validate that we have required fields
+                if (!time || !name) {
+                  console.log(`🔍 Alt Row ${index + 1} - Skipping due to missing required fields (time: "${time}", name: "${name}")`);
+                  return null;
+                }
+                
+                // Clean up class name
+                const cleanName = name.replace(/^\d+\s*[-–]\s*/, '').trim();
+                
+                const result = {
+                  name: cleanName,
+                  time,
+                  instructor,
+                  duration,
+                  price: '',
+                  classDate: targetDate
+                };
+                
+                console.log(`🔍 Alt Row ${index + 1} - Final result:`, result);
+                return result;
+              }).filter(Boolean); // Remove null entries
+            }
+          }
           
           return Array.from(rows).map((row, index) => {
             console.log(`🔍 Processing row ${index + 1}`);
@@ -1109,7 +1206,7 @@ export class WebScraper {
             
             // Check if location matches our target
             const matches = studioAddress ? location.toLowerCase().includes(studioAddress.toLowerCase()) : true;
-            console.log(`�� Row ${index + 1} - Location match: ${matches} (target: "${studioAddress}", found: "${location}")`);
+            console.log(`🔍 Row ${index + 1} - Location match: ${matches} (target: "${studioAddress}", found: "${location}")`);
             
             if (!matches) {
               console.log(`🔍 Row ${index + 1} - Skipping due to location mismatch`);
