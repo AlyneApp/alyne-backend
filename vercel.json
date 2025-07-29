@@ -1,7 +1,7 @@
 {
   "functions": {
-    "app/api/**/*.ts": {
-      "maxDuration": 60
+    "app/api/studios/[id]/classes/route.ts": {
+      "maxDuration": 300
     }
   },
   "build": {

@@ -172,6 +172,22 @@ export class WebScraper {
   }
 
   async scrapeClasses(config: ScrapingConfig, date?: string): Promise<ScrapedClass[]> {
+    try {
+      // Add timeout mechanism
+      const timeoutPromise = new Promise<ScrapedClass[]>((_, reject) => {
+        setTimeout(() => reject(new Error('Scraping timeout after 45 seconds')), 45000);
+      });
+
+      const scrapingPromise = this._scrapeClasses(config, date);
+      
+      return await Promise.race([scrapingPromise, timeoutPromise]);
+    } catch (error) {
+      console.log('❌ Scraping error:', error instanceof Error ? error.message : 'Unknown error');
+      return [];
+    }
+  }
+
+  private async _scrapeClasses(config: ScrapingConfig, date?: string): Promise<ScrapedClass[]> {
     await this.init();
     
     if (!this.browser) {
@@ -259,7 +275,7 @@ export class WebScraper {
             targetDateTextContent = elementText;
             await page.evaluate((el) => (el as HTMLElement).click(), element);
             targetDateFound = true;
-            await WebScraper.delay(2000); // Wait for page to update
+            await WebScraper.delay(1000); // Reduced from 2000ms
             break;
           }
         }
@@ -827,7 +843,7 @@ export class WebScraper {
             // Strategy 1: Try direct click
             await page.evaluate((el) => (el as HTMLElement).click(), targetDateButton);
             console.log('✅ Successfully clicked date button');
-            await WebScraper.delay(3000);
+            await WebScraper.delay(1500);
             dateNavigationSuccessful = true;
           } catch {
             console.log('⚠️ Direct click failed, trying alternative strategies...');
@@ -840,7 +856,7 @@ export class WebScraper {
                 }
               }, targetDateButton);
               console.log('✅ Successfully clicked date button via JavaScript');
-              await WebScraper.delay(3000);
+              await WebScraper.delay(1500);
               dateNavigationSuccessful = true;
             } catch {
               console.log('⚠️ JavaScript click also failed, trying keyboard navigation...');
@@ -850,7 +866,7 @@ export class WebScraper {
                 await page.evaluate((el) => (el as HTMLElement).focus(), targetDateButton);
                 await page.keyboard.press('Enter');
                 console.log('✅ Successfully navigated via keyboard');
-                await WebScraper.delay(3000);
+                await WebScraper.delay(1500);
                 dateNavigationSuccessful = true;
               } catch {
                 console.log('⚠️ All click strategies failed, continuing without date navigation');
