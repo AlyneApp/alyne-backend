@@ -782,7 +782,7 @@ export class WebScraper {
       console.log(`📅 Looking for classes on: ${targetDateString}`);
       
       // Wait for the page to fully load
-      await WebScraper.delay(2000); // Reduced from 5000ms
+      await WebScraper.delay(500); // Reduced from 5000ms
       
       // Try to wait for date buttons to be available
       try {
@@ -907,7 +907,7 @@ export class WebScraper {
               console.log(`✅ Clicked room filter button`);
               
               // Wait longer for the dropdown to appear
-              await WebScraper.delay(2000);
+              await WebScraper.delay(200);
               
               // Check if the dropdown actually appeared by looking for the ul with location options
               const dropdownUl = await page.$('ul.StyledListNavigation-sc-85emb3');
@@ -938,35 +938,7 @@ export class WebScraper {
                   roomFilterClicked = true;
                   break;
                 } else {
-                  console.log(`⚠️ Dropdown did not appear after clicking Rooms button, trying next selector`);
-                  
-                  // DEBUG: Let's see what ul elements exist on the page
-                  const allUlElements = await page.$$eval(
-                    'ul',
-                    (elements) => {
-                      return elements.map((el, index) => ({
-                        index,
-                        className: el.className,
-                        textContent: el.textContent?.trim().substring(0, 100) || '',
-                        childElementCount: el.children.length
-                      }));
-                    }
-                  );
-                  console.log(`🔍 DEBUG: Found ${allUlElements.length} ul elements after clicking Rooms:`, allUlElements);
-                  
-                  // Also check for any elements with data-test-checkbox-label
-                  const checkboxElements = await page.$$eval(
-                    '[data-test-checkbox-label]',
-                    (elements) => {
-                      return elements.map((el, index) => ({
-                        index,
-                        tagName: el.tagName,
-                        className: el.className,
-                        checkboxLabel: el.getAttribute('data-test-checkbox-label')
-                      }));
-                    }
-                  );
-                  console.log(`🔍 DEBUG: Found ${checkboxElements.length} elements with data-test-checkbox-label:`, checkboxElements);
+                  console.log(`⚠️ No room filter button found, proceeding without location filtering`);
                 }
               }
             }
@@ -975,10 +947,10 @@ export class WebScraper {
             // Continue to next selector
           }
         }
-        
+       
         if (roomFilterClicked) {
           // Wait for the dropdown to fully open
-          await WebScraper.delay(1000);
+          await WebScraper.delay(200);
           
           // DEBUG: Log all elements we can find after clicking Rooms button
           console.log('🔍 DEBUG: Looking for location options after clicking Rooms button...');
@@ -1013,62 +985,46 @@ export class WebScraper {
           );
           console.log(`🔍 DEBUG: Found ${checkboxElements.length} elements with data-test-checkbox-label:`, checkboxElements);
           
-          // Now look for the specific location option using the correct selectors
-          try {
-            const locationOptions = await page.$$eval(
-              'ul.StyledListNavigation-sc-85emb3 div[data-test-checkbox-label]',
-              (elements, targetLocation) => {
-                return elements.map(el => {
-                  const checkboxLabel = el.getAttribute('data-test-checkbox-label');
-                  if (!checkboxLabel) return null;
-                  
-                  const lowerText = checkboxLabel.toLowerCase();
-                  const targetLower = targetLocation.toLowerCase();
-                  
-                  // Check if this option matches our studio address
-                  if (lowerText.includes(targetLower) || 
-                      targetLower.includes(lowerText) ||
-                      lowerText.includes('flatiron') && targetLower.includes('flatiron')) {
-                    return {
-                      element: el,
-                      text: checkboxLabel,
-                      matchScore: lowerText === targetLower ? 100 : 
-                                 lowerText.includes(targetLower) ? 80 : 60
-                    };
-                  }
-                  return null;
-                }).filter((item): item is NonNullable<typeof item> => item !== null)
-                  .sort((a, b) => b.matchScore - a.matchScore);
-              },
-              studioAddress
-            );
+          // Look for location options
+          const locationOptions = await page.$$eval(
+            'li[data-test-checkbox-label]',
+            (elements, targetLocation) => {
+              return elements.map((el, index) => {
+                const checkboxLabel = el.getAttribute('data-test-checkbox-label');
+                const textContent = el.textContent?.trim() || '';
+                return {
+                  index,
+                  checkboxLabel,
+                  textContent,
+                  matches: textContent.toLowerCase().includes(targetLocation.toLowerCase())
+                };
+              });
+            },
+            studioAddress
+          );
+          
+          console.log(`🔍 Found ${locationOptions.length} location options:`, locationOptions);
+          
+          // Find the matching location option
+          const matchingLocation = locationOptions.find(option => option.matches);
+          
+          if (matchingLocation) {
+            console.log(`✅ Found matching location: "${matchingLocation.textContent}"`);
             
-            if (locationOptions && locationOptions.length > 0) {
-              const bestMatch = locationOptions[0];
-              console.log(`✅ Found location option: "${bestMatch.text}" (score: ${bestMatch.matchScore})`);
+            // Click the checkbox for this location
+            const locationCheckbox = await page.$(`input[data-test-checkbox="${matchingLocation.textContent}"]`);
+            if (locationCheckbox) {
+              await page.evaluate((el) => (el as HTMLElement).click(), locationCheckbox);
+              console.log(`✅ Clicked checkbox for location: "${matchingLocation.textContent}"`);
               
-              // Click the checkbox input specifically
-              try {
-                const checkboxInput = await page.$(`input[data-test-checkbox="${bestMatch.text}"]`);
-                if (checkboxInput) {
-                  await page.evaluate((el) => (el as HTMLElement).click(), checkboxInput);
-                  console.log(`✅ Clicked checkbox input for "${bestMatch.text}"`);
-                } else {
-                  // Fallback to clicking the element itself
-                  await page.evaluate((el) => (el as HTMLElement).click(), bestMatch.element);
-                  console.log(`✅ Clicked location element for "${bestMatch.text}"`);
-                }
-              } catch (clickError) {
-                console.log(`⚠️ Failed to click location option: ${clickError instanceof Error ? clickError.message : 'Unknown error'}`);
-              }
-              
-              await WebScraper.delay(1000); // Wait for filter to apply
-              console.log(`✅ Successfully filtered by location: "${bestMatch.text}"`);
+              // Wait for the filter to apply
+              await WebScraper.delay(1000);
+              console.log(`✅ Location filtering applied for: "${matchingLocation.textContent}"`);
             } else {
-              console.log(`⚠️ No location filter options found for "${studioAddress}", proceeding without filtering`);
+              console.log(`⚠️ Could not find checkbox for location: "${matchingLocation.textContent}"`);
             }
-          } catch (locationError) {
-            console.log(`⚠️ Location options parsing failed: ${locationError instanceof Error ? locationError.message : 'Unknown error'}, proceeding without filtering`);
+          } else {
+            console.log(`⚠️ No location filter options found for "${studioAddress}", proceeding without filtering`);
           }
         } else {
           console.log(`⚠️ No room filter button found, proceeding without location filtering`);
