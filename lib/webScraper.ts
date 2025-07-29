@@ -175,7 +175,7 @@ export class WebScraper {
     try {
       // Add timeout mechanism
       const timeoutPromise = new Promise<ScrapedClass[]>((_, reject) => {
-        setTimeout(() => reject(new Error('Scraping timeout after 45 seconds')), 45000);
+        setTimeout(() => reject(new Error('Scraping timeout after 30 seconds')), 30000);
       });
 
       const scrapingPromise = this._scrapeClasses(config, date);
@@ -913,43 +913,47 @@ export class WebScraper {
         
         if (roomFilterClicked) {
           // Now look for the specific location option
-          const locationOptions = await page.$$eval(
-            'button, .option, [role="option"], .dropdown-item, .filter-option',
-            (elements, targetLocation) => {
-              return elements.map(el => {
-                const text = el.textContent?.trim() || '';
-                const lowerText = text.toLowerCase();
-                const targetLower = targetLocation.toLowerCase();
-                
-                // Check if this option matches our studio address
-                if (lowerText.includes(targetLower) || 
-                    targetLower.includes(lowerText) ||
-                    lowerText.includes('flatiron') && targetLower.includes('flatiron')) {
-                  return {
-                    element: el,
-                    text: text,
-                    matchScore: lowerText === targetLower ? 100 : 
-                               lowerText.includes(targetLower) ? 80 : 60
-                  };
-                }
-                return null;
-              }).filter((item): item is NonNullable<typeof item> => item !== null)
-                .sort((a, b) => b.matchScore - a.matchScore);
-            },
-            studioAddress
-          );
-          
-          if (locationOptions.length > 0) {
-            const bestMatch = locationOptions[0];
-            console.log(`✅ Found location option: "${bestMatch.text}" (score: ${bestMatch.matchScore})`);
+          try {
+            const locationOptions = await page.$$eval(
+              'button, .option, [role="option"], .dropdown-item, .filter-option',
+              (elements, targetLocation) => {
+                return elements.map(el => {
+                  const text = el.textContent?.trim() || '';
+                  const lowerText = text.toLowerCase();
+                  const targetLower = targetLocation.toLowerCase();
+                  
+                  // Check if this option matches our studio address
+                  if (lowerText.includes(targetLower) || 
+                      targetLower.includes(lowerText) ||
+                      lowerText.includes('flatiron') && targetLower.includes('flatiron')) {
+                    return {
+                      element: el,
+                      text: text,
+                      matchScore: lowerText === targetLower ? 100 : 
+                                 lowerText.includes(targetLower) ? 80 : 60
+                    };
+                  }
+                  return null;
+                }).filter((item): item is NonNullable<typeof item> => item !== null)
+                  .sort((a, b) => b.matchScore - a.matchScore);
+              },
+              studioAddress
+            );
             
-            // Click the location option
-            await page.evaluate((el) => (el as HTMLElement).click(), bestMatch.element);
-            await WebScraper.delay(2000); // Wait for filter to apply
-            
-            console.log(`✅ Successfully filtered by location: "${bestMatch.text}"`);
-          } else {
-            console.log(`⚠️ No location filter options found for "${studioAddress}", proceeding without filtering`);
+            if (locationOptions && locationOptions.length > 0) {
+              const bestMatch = locationOptions[0];
+              console.log(`✅ Found location option: "${bestMatch.text}" (score: ${bestMatch.matchScore})`);
+              
+              // Click the location option
+              await page.evaluate((el) => (el as HTMLElement).click(), bestMatch.element);
+              await WebScraper.delay(2000); // Wait for filter to apply
+              
+              console.log(`✅ Successfully filtered by location: "${bestMatch.text}"`);
+            } else {
+              console.log(`⚠️ No location filter options found for "${studioAddress}", proceeding without filtering`);
+            }
+          } catch (locationError) {
+            console.log(`⚠️ Location options parsing failed: ${locationError instanceof Error ? locationError.message : 'Unknown error'}, proceeding without filtering`);
           }
         } else {
           console.log(`⚠️ No room filter button found, proceeding without location filtering`);
@@ -1175,7 +1179,7 @@ export class WebScraper {
           }).filter(Boolean); // Remove null entries
         },
         { targetDate: targetDateString, targetDateString, studioAddress },
-        { timeout: 30000 } // Add timeout for page.$$eval
+        { timeout: 20000 } // Add timeout for page.$$eval
       );
       
       classes = await extractionPromise; // Assign the result to the 'classes' variable
