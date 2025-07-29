@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { WebScraper } from '@/lib/webScraper';
-
+  
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -1,4 +1,4 @@
-import puppeteer, { Browser, Page } from 'puppeteer-core';
+import puppeteer, { Browser, Page } from 'puppeteer';
 import chromium from '@sparticuz/chromium';
 
 export interface ScrapedClass {
@@ -38,6 +38,11 @@ export interface ScrapingConfig {
 
 export class WebScraper {
   private browser: Browser | null = null;
+  
+  // Helper function to delay execution (replaces waitForTimeout)
+  private static delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
   
   // Helper function to parse date strings properly and avoid timezone issues
   private static parseDateSafely(dateString: string): { targetDate: Date; targetDateString: string; targetDateFormats: string[] } {
@@ -82,14 +87,35 @@ export class WebScraper {
 
   async init() {
     if (!this.browser) {
-      // Use serverless-compatible Chromium
-      const executablePath = await chromium.executablePath();
+      // Check if we're in a serverless environment (Vercel)
+      const isServerless = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
       
-      this.browser = await puppeteer.launch({
-        args: chromium.args,
-        executablePath,
-        headless: true,
-      });
+      if (isServerless) {
+        // Use serverless-compatible Chromium for Vercel
+        const executablePath = await chromium.executablePath();
+        
+        this.browser = await puppeteer.launch({
+          args: chromium.args,
+          executablePath,
+          headless: true,
+        });
+      } else {
+        // Use regular Puppeteer for local development
+        this.browser = await puppeteer.launch({
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu',
+            '--single-process',
+            '--disable-extensions'
+          ]
+        });
+      }
     }
   }
 
@@ -163,11 +189,6 @@ export class WebScraper {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       });
       
-      // Block unnecessary resources to speed up loading
-      await page.route('**/*.{png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot}', route => route.abort());
-      await page.route('**/*analytics*', route => route.abort());
-      await page.route('**/*ads*', route => route.abort());
-      
       // Navigate with faster timeout and less waiting
       await page.goto(config.websiteUrl, { 
         waitUntil: 'domcontentloaded', // Faster than 'networkidle'
@@ -229,16 +250,16 @@ export class WebScraper {
         // Try to find and click the target date
         let targetDateFound = false;
         for (const element of dateElements) {
-          const elementText = await element.textContent();
+          const elementText = await page.evaluate(el => el.textContent, element);
           console.log(`🔍 Date element: "${elementText}"`);
           
           // Check against all possible date formats
           if (elementText && targetDateFormats.some(format => elementText.trim().includes(format))) {
             console.log(`✅ Found target date element: ${elementText}`);
             targetDateTextContent = elementText;
-            await element.click();
+            await page.evaluate((el) => (el as HTMLElement).click(), element);
             targetDateFound = true;
-            await page.waitForTimeout(2000); // Wait for page to update
+            await WebScraper.delay(2000); // Wait for page to update
             break;
           }
         }
@@ -463,7 +484,8 @@ export class WebScraper {
               '.class-teacher', '.instructor', '[class*="instructor"]',
               '.teacher', '[class*="teacher"]',
               '.trainer', '[class*="trainer"]',
-              '.coach', '[class*="coach"]'
+              '.coach', '[class*="coach"]',
+              'p[class*="LineItem"]', 'p.fKKBMd'
             ];
             
             // Enhanced selectors for duration
@@ -744,7 +766,7 @@ export class WebScraper {
       console.log(`📅 Looking for classes on: ${targetDateString}`);
       
       // Wait for the page to fully load
-      await page.waitForTimeout(5000);
+      await WebScraper.delay(5000);
       
       // Try to wait for date buttons to be available
       try {
@@ -761,9 +783,9 @@ export class WebScraper {
           const modalCloseButtons = await page.$$('[aria-label="Close"], .close, .modal-close, [data-testid="close"], button[aria-label*="close" i]');
           for (const closeButton of modalCloseButtons) {
             try {
-              await closeButton.click({ timeout: 5000 });
+              await page.evaluate((el) => (el as HTMLElement).click(), closeButton);
               console.log('✅ Closed modal dialog');
-              await page.waitForTimeout(1000);
+              await WebScraper.delay(1000);
             } catch {
               // Ignore errors for individual close attempts
             }
@@ -778,8 +800,8 @@ export class WebScraper {
         
         // Log all date buttons for debugging
         for (let i = 0; i < dateButtons.length; i++) {
-          const buttonText = await dateButtons[i].textContent();
-          const buttonDate = await dateButtons[i].getAttribute('data-test-date-button');
+          const buttonText = await page.evaluate(el => el.textContent, dateButtons[i]);
+          const buttonDate = await page.evaluate((el) => el.getAttribute('data-test-date-button'), dateButtons[i]);
           console.log(`🔍 Date button ${i}: "${buttonText}" (${buttonDate})`);
         }
         
@@ -789,7 +811,7 @@ export class WebScraper {
         console.log(`🔍 Looking for target day: ${targetDay}`);
         
         for (const button of dateButtons) {
-          const buttonDate = await button.getAttribute('data-test-date-button');
+          const buttonDate = await page.evaluate((el) => el.getAttribute('data-test-date-button'), button);
           
           // Check if this button matches our target date
           if (buttonDate && (buttonDate.includes(targetDay) || buttonDate.includes(`active-${targetDay}`))) {
@@ -803,9 +825,9 @@ export class WebScraper {
         if (targetDateButton) {
           try {
             // Strategy 1: Try direct click
-            await targetDateButton.click({ timeout: 10000 });
+            await page.evaluate((el) => (el as HTMLElement).click(), targetDateButton);
             console.log('✅ Successfully clicked date button');
-            await page.waitForTimeout(3000);
+            await WebScraper.delay(3000);
             dateNavigationSuccessful = true;
           } catch {
             console.log('⚠️ Direct click failed, trying alternative strategies...');
@@ -818,17 +840,17 @@ export class WebScraper {
                 }
               }, targetDateButton);
               console.log('✅ Successfully clicked date button via JavaScript');
-              await page.waitForTimeout(3000);
+              await WebScraper.delay(3000);
               dateNavigationSuccessful = true;
             } catch {
               console.log('⚠️ JavaScript click also failed, trying keyboard navigation...');
               
               try {
                 // Strategy 3: Try keyboard navigation
-                await targetDateButton.focus();
+                await page.evaluate((el) => (el as HTMLElement).focus(), targetDateButton);
                 await page.keyboard.press('Enter');
                 console.log('✅ Successfully navigated via keyboard');
-                await page.waitForTimeout(3000);
+                await WebScraper.delay(3000);
                 dateNavigationSuccessful = true;
               } catch {
                 console.log('⚠️ All click strategies failed, continuing without date navigation');
@@ -970,7 +992,39 @@ export class WebScraper {
               
               // Get instructor from second cell
               const instructorButton = row.querySelector('button[data-test-button*="instructor-details"] .ButtonLabel-sc-vvc4oq');
-              const instructor = instructorButton?.textContent?.trim() || '';
+              let instructor = instructorButton?.textContent?.trim() || '';
+              
+              // Enhanced instructor selector to catch more instructor elements
+              if (!instructor) {
+                const instructorSelectors = [
+                  'button[data-test-button*="instructor-details"] .ButtonLabel-sc-vvc4oq',
+                  '.instructor', '.teacher', '.trainer', '.staff',
+                  '[data-instructor]', '.class-instructor', '.coach',
+                  'p[class*="LineItem"]', 'p.fKKBMd'
+                ];
+                
+                for (const selector of instructorSelectors) {
+                  const instructorElement = row.querySelector(selector);
+                  if (instructorElement) {
+                    const potentialInstructor = instructorElement.textContent?.trim() || '';
+                    
+                    // Validate that this looks like an instructor name, not duration or other data
+                    if (potentialInstructor && 
+                        potentialInstructor.length > 0 && 
+                        !potentialInstructor.match(/^\d+\s*min/i) && // Not "50 min" or similar
+                        !potentialInstructor.match(/^\d+$/) && // Not just numbers
+                        !potentialInstructor.match(/^[0-9:]+$/) && // Not time format
+                        potentialInstructor.length < 50 && // Reasonable name length
+                        /[a-zA-Z]/.test(potentialInstructor)) { // Contains letters
+                      
+                      instructor = potentialInstructor;
+                      console.log(`✅ Found instructor with selector "${selector}": "${instructor}"`);
+                      break;
+                    }
+                  }
+                }
+              }
+              
               console.log(`🔍 Instructor: "${instructor}"`);
               
               // Clean up class name (remove duration and any icons/special characters)
@@ -1057,9 +1111,6 @@ export class WebScraper {
         console.log('❌ Barry\'s table scraping error:', error instanceof Error ? error.message : 'Unknown error');
         return [];
       }
-      
-      console.log(`✅ Found ${classes.length} classes using Barry's table scraper`);
-      return classes;
     } catch (error) {
       console.log('❌ Barry\'s table scraping main error:', error instanceof Error ? error.message : 'Unknown error');
       return [];
@@ -1150,4 +1201,4 @@ export class WebScraper {
     if (lowerName.includes('core')) return 'core';
     return 'fitness';
   }
-} 
+}
