@@ -1092,142 +1092,59 @@ export class WebScraper {
           return Array.from(rows).map((row, index) => {
             console.log(`🔍 Processing row ${index + 1}`);
             
-            // Get time from first cell
+            // Get time from first cell - CORRECTED SELECTOR
             const timeCell = row.querySelector('td:first-child .BoldLabel-sc-ha1dsk');
             const time = timeCell?.textContent?.trim() || '';
             console.log(`🔍 Row ${index + 1} - Time: "${time}"`);
             
-            // Get duration from first cell
+            // Get duration from first cell - CORRECTED SELECTOR
             const durationCell = row.querySelector('td:first-child .StyledMeta-sc-1tw3zxx');
             const duration = durationCell?.textContent?.trim() || '';
             console.log(`🔍 Row ${index + 1} - Duration: "${duration}"`);
             
-            // Get location from first cell
+            // Get location from first cell - CORRECTED SELECTOR
             const locationCell = row.querySelector('td:first-child .StyledLocationData-sc-1999s1s');
             const location = locationCell?.textContent?.trim() || '';
             console.log(`🔍 Row ${index + 1} - Location: "${location}"`);
             
-            // Filter by studio address location
-            console.log(`🔍 Row ${index + 1} - Checking location filter - Studio address: "${studioAddress}", Class location: "${location}"`);
-            if (studioAddress && location) {
-              // Extract location keywords from studio address (e.g., "Brooklyn Heights" from full address)
-              const addressLower = studioAddress.toLowerCase();
-              const locationLower = location.toLowerCase();
-              
-              console.log(`🔍 Row ${index + 1} - Address lower: "${addressLower}", Location lower: "${locationLower}"`);
-              
-              // Check if the class location matches any part of the studio address
-              const addressWords = addressLower.split(/[,\s]+/).filter(word => word.length > 2);
-              const locationWords = locationLower.split(/[,\s]+/).filter(word => word.length > 2);
-              
-              console.log(`🔍 Row ${index + 1} - Address words: [${addressWords.join(', ')}], Location words: [${locationWords.join(', ')}]`);
-              
-              const hasMatchingLocation = addressWords.some(addrWord => 
-                locationWords.some(locWord => 
-                  addrWord.includes(locWord) || locWord.includes(addrWord)
-                )
-              );
-              
-              console.log(`🔍 Row ${index + 1} - Has matching location: ${hasMatchingLocation}`);
-              
-              if (!hasMatchingLocation) {
-                console.log(`❌ Row ${index + 1} - Skipping class - location "${location}" doesn't match studio address "${studioAddress}"`);
-                return null;
-              }
-              
-              console.log(`✅ Row ${index + 1} - Class location "${location}" matches studio address "${studioAddress}"`);
-            } else {
-              console.log(`⚠️ Row ${index + 1} - No filtering - studioAddress: "${studioAddress}", location: "${location}"`);
+            // Check if location matches our target
+            const matches = studioAddress ? location.toLowerCase().includes(studioAddress.toLowerCase()) : true;
+            console.log(`�� Row ${index + 1} - Location match: ${matches} (target: "${studioAddress}", found: "${location}")`);
+            
+            if (!matches) {
+              console.log(`🔍 Row ${index + 1} - Skipping due to location mismatch`);
+              return null;
             }
             
-            // Get class name from second cell - be more specific to avoid icons
+            // Get class name from second cell - CORRECTED SELECTOR
             const classButton = row.querySelector('button[data-test-button*="class-details"] .ButtonLabel-sc-vvc4oq');
             const name = classButton?.textContent?.trim() || '';
             console.log(`🔍 Row ${index + 1} - Class name: "${name}"`);
             
-            // Get instructor from second cell
+            // Get instructor from second cell - CORRECTED SELECTOR
             const instructorButton = row.querySelector('button[data-test-button*="instructor-details"] .ButtonLabel-sc-vvc4oq');
             let instructor = instructorButton?.textContent?.trim() || '';
-            console.log(`🔍 Row ${index + 1} - Instructor: "${instructor}"`);
             
-            // Enhanced instructor selector to catch more instructor elements
+            // If no instructor button found, try the p tag (for cases like Emily Calhoun)
             if (!instructor) {
-              const instructorSelectors = [
-                'button[data-test-button*="instructor-details"] .ButtonLabel-sc-vvc4oq',
-                '.instructor', '.teacher', '.trainer', '.staff',
-                '[data-instructor]', '.class-instructor', '.coach',
-                'p[class*="LineItem"]', 'p.fKKBMd'
-              ];
-              
-              for (const selector of instructorSelectors) {
-                const instructorElement = row.querySelector(selector);
-                if (instructorElement) {
-                  const potentialInstructor = instructorElement.textContent?.trim() || '';
-                  
-                  // Validate that this looks like an instructor name, not duration or other data
-                  if (potentialInstructor && 
-                      potentialInstructor.length > 0 && 
-                      !potentialInstructor.match(/^\d+\s*min/i) && // Not "50 min" or similar
-                      !potentialInstructor.match(/^\d+$/) && // Not just numbers
-                      !potentialInstructor.match(/^[0-9:]+$/) && // Not time format
-                      potentialInstructor.length < 50 && // Reasonable name length
-                      /[a-zA-Z]/.test(potentialInstructor)) { // Contains letters
-                    
-                    instructor = potentialInstructor;
-                    console.log(`✅ Row ${index + 1} - Found instructor with selector "${selector}": "${instructor}"`);
-                    break;
-                  }
-                }
+              const instructorP = row.querySelector('p.LineItem-sc-kwjy1o.fKKBMd');
+              instructor = instructorP?.textContent?.trim() || '';
+              // Filter out duration strings
+              if (instructor && (instructor.includes('min') || instructor.includes('50'))) {
+                instructor = '';
               }
             }
             
-            console.log(`🔍 Row ${index + 1} - Final instructor: "${instructor}"`);
+            console.log(`🔍 Row ${index + 1} - Instructor: "${instructor}"`);
             
-            // Clean up class name (remove duration and any icons/special characters)
-            let cleanName = name;
-            if (duration) {
-              cleanName = name.replace(new RegExp(`\\(${duration}\\)`, 'i'), '').trim();
-            }
-            
-            // Remove any icons, emojis, or special characters that might be included
-            cleanName = cleanName
-              .replace(/[\u{1F600}-\u{1F64F}]/gu, '') // Remove emojis
-              .replace(/[\u{1F300}-\u{1F5FF}]/gu, '') // Remove miscellaneous symbols
-              .replace(/[\u{1F680}-\u{1F6FF}]/gu, '') // Remove transport symbols
-              .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '') // Remove regional indicator symbols
-              .replace(/[\u{2600}-\u{26FF}]/gu, '') // Remove miscellaneous symbols
-              .replace(/[\u{2700}-\u{27BF}]/gu, '') // Remove dingbats
-              .replace(/[^\w\s\-\(\)]/g, '') // Remove any other special characters except letters, numbers, spaces, hyphens, and parentheses
-              .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-              .trim();
-            
-            console.log(`🔍 Row ${index + 1} - Clean class name: "${cleanName}"`);
-            
-            // Validate that this class is for the target date
-            const pageHeader = document.querySelector('h1');
-            const headerText = pageHeader?.textContent || '';
-            console.log(`🔍 Row ${index + 1} - Page header: "${headerText}"`);
-            
-            // Check if the active date button matches our target date
-            const activeDateButton = document.querySelector('button[data-test-date-button*="active"]');
-            const activeButtonDate = activeDateButton?.getAttribute('data-test-date-button') || '';
-            console.log(`🔍 Row ${index + 1} - Active date button: "${activeButtonDate}"`);
-            
-            // Check if the page header contains the target date or if the active button matches
-            const targetDay = targetDateString.split('/')[1]; // Get the day part
-            console.log(`🔍 Row ${index + 1} - Target day: ${targetDay}, Active button: "${activeButtonDate}", Header: "${headerText}"`);
-            
-            const isTargetDate = headerText.includes(targetDate) || 
-                               headerText.includes(targetDateString) ||
-                               activeButtonDate.includes(targetDay) ||
-                               activeButtonDate.includes(`active-${targetDay}`);
-            
-            if (!isTargetDate) {
-              console.log(`❌ Row ${index + 1} - Skipping class - not for target date ${targetDateString} (header: "${headerText}", active button: "${activeButtonDate}")`);
+            // Validate that we have required fields
+            if (!time || !name) {
+              console.log(`🔍 Row ${index + 1} - Skipping due to missing required fields (time: "${time}", name: "${name}")`);
               return null;
             }
             
-            console.log(`✅ Row ${index + 1} - Including class for target date ${targetDateString}`);
+            // Clean up class name
+            const cleanName = name.replace(/^\d+\s*[-–]\s*/, '').trim();
             
             const result = {
               name: cleanName,
