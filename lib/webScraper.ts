@@ -906,8 +906,8 @@ export class WebScraper {
               await page.evaluate((el) => (el as HTMLElement).click(), roomButton);
               console.log(`✅ Clicked room filter button`);
               
-              // Wait for the dropdown to appear
-              await WebScraper.delay(1000);
+              // Wait longer for the dropdown to appear
+              await WebScraper.delay(2000);
               
               // Check if the dropdown actually appeared by looking for the ul with location options
               const dropdownUl = await page.$('ul.StyledListNavigation-sc-85emb3');
@@ -916,7 +916,58 @@ export class WebScraper {
                 roomFilterClicked = true;
                 break;
               } else {
-                console.log(`⚠️ Dropdown did not appear after clicking Rooms button, trying next selector`);
+                // Try alternative selectors for the dropdown
+                const alternativeDropdowns = [
+                  'ul[class*="StyledListNavigation"]',
+                  'ul[class*="StyledUl"]',
+                  'ul[class*="Navigation"]',
+                  'ul[class*="List"]'
+                ];
+                
+                let dropdownFound = false;
+                for (const altSelector of alternativeDropdowns) {
+                  const altDropdown = await page.$(altSelector);
+                  if (altDropdown) {
+                    console.log(`✅ Found dropdown with alternative selector: "${altSelector}"`);
+                    dropdownFound = true;
+                    break;
+                  }
+                }
+                
+                if (dropdownFound) {
+                  roomFilterClicked = true;
+                  break;
+                } else {
+                  console.log(`⚠️ Dropdown did not appear after clicking Rooms button, trying next selector`);
+                  
+                  // DEBUG: Let's see what ul elements exist on the page
+                  const allUlElements = await page.$$eval(
+                    'ul',
+                    (elements) => {
+                      return elements.map((el, index) => ({
+                        index,
+                        className: el.className,
+                        textContent: el.textContent?.trim().substring(0, 100) || '',
+                        childElementCount: el.children.length
+                      }));
+                    }
+                  );
+                  console.log(`🔍 DEBUG: Found ${allUlElements.length} ul elements after clicking Rooms:`, allUlElements);
+                  
+                  // Also check for any elements with data-test-checkbox-label
+                  const checkboxElements = await page.$$eval(
+                    '[data-test-checkbox-label]',
+                    (elements) => {
+                      return elements.map((el, index) => ({
+                        index,
+                        tagName: el.tagName,
+                        className: el.className,
+                        checkboxLabel: el.getAttribute('data-test-checkbox-label')
+                      }));
+                    }
+                  );
+                  console.log(`🔍 DEBUG: Found ${checkboxElements.length} elements with data-test-checkbox-label:`, checkboxElements);
+                }
               }
             }
           } catch (error) {
