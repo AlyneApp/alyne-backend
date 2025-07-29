@@ -1073,16 +1073,52 @@ export class WebScraper {
     try {
       console.log('🔍 About to start page.$$eval for class extraction...');
       
-      // First, let's test if we can execute any JavaScript in the page
-      try {
-        const testResult = await page.evaluate(() => {
-          console.log('🔍 TEST: JavaScript execution works in page context');
-          return 'test-success';
+      // Check what selectors actually exist on the page
+      const selectorCheck = await page.evaluate(() => {
+        console.log('🔍 SELECTOR CHECK: Starting comprehensive selector analysis...');
+        
+        // Check all possible table row selectors
+        const selectors = [
+          'tr[data-test-row]',
+          'tr[data-test-row="table-row"]',
+          'tr[class*="StyledTableRow"]',
+          'tr[class*="byEgUB"]',
+          'table tbody tr',
+          'tbody tr',
+          'tr'
+        ];
+        
+        const results: Record<string, any> = {};
+        
+        selectors.forEach(selector => {
+          const elements = document.querySelectorAll(selector);
+          console.log(`🔍 SELECTOR CHECK: "${selector}" found ${elements.length} elements`);
+          
+          if (elements.length > 0) {
+            results[selector] = {
+              count: elements.length,
+              firstElement: {
+                className: elements[0].className,
+                attributes: Array.from(elements[0].attributes).map(attr => `${attr.name}="${attr.value}"`).join(' '),
+                textContent: elements[0].textContent?.trim().substring(0, 100) || ''
+              }
+            };
+          }
         });
-        console.log('🔍 TEST: Page evaluate result:', testResult);
-      } catch (error) {
-        console.log('🔍 TEST: Page evaluate failed:', error);
-      }
+        
+        // Also check if there's a table at all
+        const tables = document.querySelectorAll('table');
+        console.log(`🔍 SELECTOR CHECK: Found ${tables.length} tables`);
+        
+        if (tables.length > 0) {
+          console.log(`🔍 SELECTOR CHECK: First table classes: "${tables[0].className}"`);
+          console.log(`🔍 SELECTOR CHECK: First table attributes: "${Array.from(tables[0].attributes).map(attr => `${attr.name}="${attr.value}"`).join(' ')}"`);
+        }
+        
+        return { results, tableCount: tables.length };
+      });
+      
+      console.log('🔍 SELECTOR CHECK RESULTS:', selectorCheck);
       
       const extractionPromise = page.$$eval(
         'tr[data-test-row]',
