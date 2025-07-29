@@ -175,7 +175,7 @@ export class WebScraper {
     try {
       // Add timeout mechanism
       const timeoutPromise = new Promise<ScrapedClass[]>((_, reject) => {
-        setTimeout(() => reject(new Error('Scraping timeout after 120 seconds')), 120000);
+        setTimeout(() => reject(new Error('Scraping timeout after 45 seconds')), 45000);
       });
 
       const scrapingPromise = this._scrapeClasses(config, date);
@@ -275,7 +275,7 @@ export class WebScraper {
             targetDateTextContent = elementText;
             await page.evaluate((el) => (el as HTMLElement).click(), element);
             targetDateFound = true;
-            await WebScraper.delay(1000); // Reduced from 2000ms
+            await WebScraper.delay(500); // Reduced from 2000ms
             break;
           }
         }
@@ -782,7 +782,7 @@ export class WebScraper {
       console.log(`📅 Looking for classes on: ${targetDateString}`);
       
       // Wait for the page to fully load
-      await WebScraper.delay(5000);
+      await WebScraper.delay(2000); // Reduced from 5000ms
       
       // Try to wait for date buttons to be available
       try {
@@ -801,7 +801,7 @@ export class WebScraper {
             try {
               await page.evaluate((el) => (el as HTMLElement).click(), closeButton);
               console.log('✅ Closed modal dialog');
-              await WebScraper.delay(1000);
+              await WebScraper.delay(500); // Reduced from 1000ms
             } catch {
               // Ignore errors for individual close attempts
             }
@@ -843,7 +843,7 @@ export class WebScraper {
             // Strategy 1: Try direct click
             await page.evaluate((el) => (el as HTMLElement).click(), targetDateButton);
             console.log('✅ Successfully clicked date button');
-            await WebScraper.delay(1500);
+            await WebScraper.delay(750); // Reduced from 1500ms
             dateNavigationSuccessful = true;
           } catch {
             try {
@@ -854,7 +854,7 @@ export class WebScraper {
                 }
               }, targetDateButton);
               console.log('✅ Successfully clicked date button via JavaScript');
-              await WebScraper.delay(1500);
+              await WebScraper.delay(750); // Reduced from 1500ms
               dateNavigationSuccessful = true;
             } catch {
               try {
@@ -862,7 +862,7 @@ export class WebScraper {
                 await page.evaluate((el) => (el as HTMLElement).focus(), targetDateButton);
                 await page.keyboard.press('Enter');
                 console.log('✅ Successfully navigated via keyboard');
-                await WebScraper.delay(1500);
+                await WebScraper.delay(750); // Reduced from 1500ms
                 dateNavigationSuccessful = true;
               } catch {
                 console.log('❌ All date navigation strategies failed');
@@ -902,7 +902,7 @@ export class WebScraper {
             if (roomButton) {
               console.log(`✅ Found room filter button with selector: "${selector}"`);
               await roomButton.click();
-              await WebScraper.delay(1000);
+              await WebScraper.delay(500); // Reduced from 1000ms
               roomFilterClicked = true;
               break;
             }
@@ -912,41 +912,8 @@ export class WebScraper {
         }
         
         if (roomFilterClicked) {
-          // Wait longer for the dropdown to fully open
-          await WebScraper.delay(2000);
-          
-          // Try to find the Flatiron checkbox directly first
-          try {
-            const flatironCheckbox = await page.$('input[data-test-checkbox="Flatiron"]');
-            if (flatironCheckbox) {
-              console.log('✅ Found Flatiron checkbox directly');
-              await page.evaluate((el) => (el as HTMLElement).click(), flatironCheckbox);
-              await WebScraper.delay(2000);
-              console.log('✅ Successfully clicked Flatiron checkbox');
-            } else {
-              console.log('⚠️ Flatiron checkbox not found directly, trying alternative approach');
-            }
-          } catch (directError) {
-            console.log(`⚠️ Direct checkbox approach failed: ${directError instanceof Error ? directError.message : 'Unknown error'}`);
-          }
-          
           // Now look for the specific location option
           try {
-            // First, let's debug what elements we can find
-            const debugElements = await page.$$eval(
-              'li, button, .option, [role="option"], .dropdown-item, .filter-option',
-              (elements) => {
-                return elements.slice(0, 10).map((el, index) => ({
-                  index,
-                  tagName: el.tagName,
-                  className: el.className,
-                  textContent: el.textContent?.trim().substring(0, 50) || '',
-                  attributes: Array.from(el.attributes).map(attr => `${attr.name}="${attr.value}"`).join(' ')
-                }));
-              }
-            );
-            console.log(`🔍 Debug: Found ${debugElements.length} potential elements:`, debugElements);
-            
             const locationOptions = await page.$$eval(
               'li[data-test-checkbox-label], li .StyledLabel-sc-gtqer8, li label, button, .option, [role="option"], .dropdown-item, .filter-option',
               (elements, targetLocation) => {
@@ -1008,7 +975,7 @@ export class WebScraper {
                 console.log(`⚠️ Failed to click location option: ${clickError instanceof Error ? clickError.message : 'Unknown error'}`);
               }
               
-              await WebScraper.delay(2000); // Wait for filter to apply
+              await WebScraper.delay(1000); // Reduced from 2000ms
               
               console.log(`✅ Successfully filtered by location: "${bestMatch.text}"`);
             } else {
@@ -1241,7 +1208,7 @@ export class WebScraper {
           }).filter(Boolean); // Remove null entries
         },
         { targetDate: targetDateString, targetDateString, studioAddress },
-        { timeout: 60000 } // Add timeout for page.$$eval
+        { timeout: 20000 } // Add timeout for page.$$eval
       );
       
       classes = await extractionPromise; // Assign the result to the 'classes' variable
