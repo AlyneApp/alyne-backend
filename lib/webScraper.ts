@@ -915,6 +915,39 @@ export class WebScraper {
           // Wait for the dropdown to fully open
           await WebScraper.delay(1000);
           
+          // DEBUG: Log all elements we can find after clicking Rooms button
+          console.log('🔍 DEBUG: Looking for location options after clicking Rooms button...');
+          
+          // First, let's see what li elements exist
+          const allLiElements = await page.$$eval(
+            'li',
+            (elements) => {
+              return elements.map((el, index) => ({
+                index,
+                tagName: el.tagName,
+                className: el.className,
+                textContent: el.textContent?.trim().substring(0, 100) || '',
+                attributes: Array.from(el.attributes).map(attr => `${attr.name}="${attr.value}"`).join(' ')
+              }));
+            }
+          );
+          console.log(`🔍 DEBUG: Found ${allLiElements.length} li elements:`, allLiElements.slice(0, 5)); // Show first 5
+          
+          // Now look for elements with data-test-checkbox-label
+          const checkboxElements = await page.$$eval(
+            '[data-test-checkbox-label]',
+            (elements) => {
+              return elements.map((el, index) => ({
+                index,
+                tagName: el.tagName,
+                className: el.className,
+                checkboxLabel: el.getAttribute('data-test-checkbox-label'),
+                textContent: el.textContent?.trim().substring(0, 100) || ''
+              }));
+            }
+          );
+          console.log(`🔍 DEBUG: Found ${checkboxElements.length} elements with data-test-checkbox-label:`, checkboxElements);
+          
           // Now look for the specific location option using the correct selectors
           try {
             const locationOptions = await page.$$eval(
