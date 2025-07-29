@@ -1142,7 +1142,7 @@ export class WebScraper {
             
             // Get class name from second cell - be more specific to avoid icons
             const classButton = row.querySelector('button[data-test-button*="class-details"] .ButtonLabel-sc-vvc4oq');
-            let name = classButton?.textContent?.trim() || '';
+            const name = classButton?.textContent?.trim() || '';
             console.log(`🔍 Row ${index + 1} - Class name: "${name}"`);
             
             // Get instructor from second cell
