@@ -989,6 +989,57 @@ export class WebScraper {
               console.log(`✅ Location filtering applied for: "${matchingLocation.textContent}"`);
             } else {
               console.log(`⚠️ Could not find checkbox for location: "${matchingLocation.textContent}"`);
+              
+              // Try alternative selectors
+              const alternativeSelectors = [
+                `input[name="${matchingLocation.textContent}"]`,
+                `input[type="checkbox"][name="${matchingLocation.textContent}"]`,
+                `label:has(input[name="${matchingLocation.textContent}"])`,
+                `div[data-test-checkbox-label="${matchingLocation.textContent}"] input`,
+                `div[data-test-checkbox-label="filter-location-nyc"]:has(span:contains("${matchingLocation.textContent}"))`,
+                `div[data-test-checkbox-label="filter-location-nyc"]`
+              ];
+              
+              let checkboxFound = false;
+              for (const selector of alternativeSelectors) {
+                const altCheckbox = await page.$(selector);
+                if (altCheckbox) {
+                  await page.evaluate((el) => (el as HTMLElement).click(), altCheckbox);
+                  console.log(`✅ Clicked checkbox using alternative selector: "${selector}"`);
+                  checkboxFound = true;
+                  break;
+                }
+              }
+              
+              // If still not found, try clicking the div container that contains the location text
+              if (!checkboxFound) {
+                const locationDiv = await page.$$eval(
+                  'div[data-test-checkbox-label="filter-location-nyc"]',
+                  (elements, targetLocation) => {
+                    for (const el of elements) {
+                      if (el.textContent?.includes(targetLocation)) {
+                        return el;
+                      }
+                    }
+                    return null;
+                  },
+                  matchingLocation.textContent
+                );
+                
+                if (locationDiv) {
+                  await page.evaluate((el) => (el as HTMLElement).click(), locationDiv);
+                  console.log(`✅ Clicked location div container for: "${matchingLocation.textContent}"`);
+                  checkboxFound = true;
+                }
+              }
+              
+              if (checkboxFound) {
+                // Wait for the filter to apply
+                await WebScraper.delay(1000);
+                console.log(`✅ Location filtering applied for: "${matchingLocation.textContent}"`);
+              } else {
+                console.log(`⚠️ All checkbox selectors failed for location: "${matchingLocation.textContent}"`);
+              }
             }
           } else {
             console.log(`⚠️ No location filter options found for "${studioAddress}", proceeding without filtering`);
