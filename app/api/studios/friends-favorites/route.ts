@@ -103,7 +103,6 @@ export async function GET(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     studioLikes.forEach((like: any) => {
       if (!like.studios || !like.users) {
-        console.log('Warning: Missing studio or user data in like');
         return;
       }
       
@@ -145,10 +144,7 @@ export async function GET(request: NextRequest) {
         distance_unit: 'min away'
       }));
 
-    // Log the first studio with its liked_by data
-    if (sortedStudios.length > 0) {
-      console.log(`First studio "${sortedStudios[0].name}" liked_by:`, sortedStudios[0].liked_by);
-    }
+
 
     return NextResponse.json({
       success: true,

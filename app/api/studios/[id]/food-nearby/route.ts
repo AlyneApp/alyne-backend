@@ -76,7 +76,7 @@ export async function GET(
     console.log('Google Places API URL:', searchUrl);
     
     const searchResponse = await fetch(searchUrl);
-    console.log('Google Places API response status:', searchResponse.status);
+
     
     if (!searchResponse.ok) {
       console.error('Google Places API error:', searchResponse.status, searchResponse.statusText);
@@ -90,7 +90,7 @@ export async function GET(
     }
     
     const searchData = await searchResponse.json();
-    console.log('Google Places API response status:', searchData.status);
+
 
     if (searchData.status !== 'OK' || !searchData.results) {
       console.error('Google Places API error:', searchData.status, searchData.error_message);
@@ -125,7 +125,7 @@ export async function GET(
       if (place.photos && place.photos.length > 0) {
         const photo = place.photos[0];
         imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=300&maxheight=200&photo_reference=${photo.photo_reference}&key=${googleApiKey}`;
-        console.log(`✅ Using Google photo for "${place.name}":`, imageUrl);
+
       } else {
         // Fallback to category-based images
         const types = place.types || [];

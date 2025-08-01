@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { WebScraper } from '@/lib/webScraper';
-  
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -22,10 +22,10 @@ export async function GET(
 
     // Fetch studio information
     const { data: studio, error: studioError } = await supabaseAdmin!
-      .from('studios')
-      .select('*')
-      .eq('id', studioId)
-      .single();
+        .from('studios')
+        .select('*')
+        .eq('id', studioId)
+        .single();
 
     if (studioError || !studio) {
       console.error('Error fetching studio:', studioError);
@@ -54,20 +54,13 @@ export async function GET(
 
     // Try web scraping if studio has a website or booking site
     const websiteUrl = studio.booking_site || studio.website;
-    console.log('🔍 Checking for website URL:', { 
-      websiteUrl, 
-      hasUrl: !!websiteUrl,
-      studioName: studio.name,
-      bookingSite: studio.booking_site,
-      website: studio.website
-    });
     
     if (websiteUrl) {
-      console.log('🌐 Attempting web scraping for:', websiteUrl);
+
       try {
         const webScraper = new WebScraper();
         const scrapingType = WebScraper.getScrapingConfig(websiteUrl);
-        console.log('🔧 Scraping config:', scrapingType);
+
         
         if (scrapingType) {
           const scrapedClasses = await webScraper.scrapeClasses(websiteUrl, startDate || undefined, studio.address);
@@ -90,22 +83,22 @@ export async function GET(
             source: 'web_scraping'
           }));
           
-          console.log('✅ Web scraping successful, classes:', classes);
+
         }
       } catch (scrapingError) {
-        console.error('❌ Web scraping error:', scrapingError);
+        console.error('Web scraping error:', scrapingError);
       } finally {
         // Close the browser to free up resources
-        const webScraper = new WebScraper();
-        await webScraper.close();
+          const webScraper = new WebScraper();
+          await webScraper.close();
       }
     } else {
-      console.log('⚠️ No website URL found for studio, skipping web scraping');
+
     }
 
     // If no classes found from scraping, fall back to database
     if (classes.length === 0) {
-      console.log('📊 No classes from web scraping, fetching from database');
+
       
       const { data: dbClasses, error: dbError } = await supabase
         .from('classes')

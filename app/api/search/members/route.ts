@@ -12,15 +12,14 @@ async function enhanceUsersWithFollowData(users: Array<{
 }>, currentUserId: string) {
   if (!users || users.length === 0) return [];
 
-  // Get all follow relationships in one query
+  // Get all follow relationships in one query (both approved and pending)
   const userIds = users.map(u => u.id);
   
   const { data: followData, error: followError } = await supabase
     .from('friends')
-    .select('user_id, friend_id')
+    .select('user_id, friend_id, approved')
     .in('user_id', [currentUserId, ...userIds])
-    .in('friend_id', [currentUserId, ...userIds])
-    .eq('approved', true);
+    .in('friend_id', [currentUserId, ...userIds]);
 
   if (followError) {
     console.error('⚠️ Error getting follow data:', followError);
@@ -34,10 +33,13 @@ async function enhanceUsersWithFollowData(users: Array<{
       f.friend_id === searchUser.id
     ).length;
 
-    // Check if current user follows this search user
-    const i_follow = followData.some(f => 
+    // Check if current user follows this search user (approved or pending)
+    const followRelationship = followData.find(f => 
       f.user_id === currentUserId && f.friend_id === searchUser.id
     );
+    
+    const i_follow = !!followRelationship;
+    const is_pending = followRelationship && !followRelationship.approved;
 
     const enhancedUser = {
       id: searchUser.id,
@@ -45,8 +47,9 @@ async function enhanceUsersWithFollowData(users: Array<{
       full_name: searchUser.full_name,
       avatar_url: searchUser.avatar_url,
       followers_count: followerCount,
-      is_following: i_follow,
+      is_following: i_follow && followRelationship?.approved,
       i_follow,
+      is_pending,
     };
 
     return enhancedUser;

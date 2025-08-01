@@ -23,7 +23,8 @@ interface ActivityFeedItem {
   user_id: string;
   type: string;
   studio_id: string | null;
-  extra_data: ActivityMetadata; // This maps to the JSONB field in database
+  extra_data: ActivityMetadata;
+  collaboration_partners: string[] | null;
   like_count: number;
   comment_count: number;
   created_at: string;
@@ -51,7 +52,7 @@ interface FormattedActivity {
   buttonLabel?: string;
 }
 
-function formatActivityMessage(activity: ActivityFeedItem): FormattedActivity {
+async function formatActivityMessage(activity: ActivityFeedItem): Promise<FormattedActivity> {
   const username = activity.users?.full_name || activity.users?.username || 'Someone';
   const metadata = activity.extra_data || {};
   
@@ -59,6 +60,38 @@ function formatActivityMessage(activity: ActivityFeedItem): FormattedActivity {
     case 'class_checkin':
       if (activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string') {
         const classMetadata = metadata as ClassActivityDetails;
+        
+        if (activity.collaboration_partners && activity.collaboration_partners.length > 0) {
+          const { data: partnerUsers } = await supabase
+            .from('users')
+            .select('full_name, username')
+            .in('id', activity.collaboration_partners);
+          
+          const partnerNames = partnerUsers?.map(user => 
+            user.full_name || user.username || 'Someone'
+          ).join(', ') || 'Partners';
+          
+          return {
+            messageParts: [
+              { text: 'Getting stronger together! ', bold: false, clickable: false },
+              { text: `${username} `, bold: true, clickable: true },
+              { text: 'just checked in for ', bold: false, clickable: false },
+              { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+              { text: 'at ', bold: false, clickable: false },
+              { text: `${activity.studios.name} `, bold: true, clickable: true },
+              { text: 'with ', bold: false, clickable: false },
+              { text: `${partnerNames}`, bold: true, clickable: true },
+              { text: '.', bold: false, clickable: false }
+            ],
+            type: classMetadata.class_name,
+            schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
+              month: 'long',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit'
+            }) : null
+          };
+        } else {
         return {
           messageParts: [
             { text: `${username} took a `, bold: false, clickable: false },
@@ -75,6 +108,45 @@ function formatActivityMessage(activity: ActivityFeedItem): FormattedActivity {
             minute: '2-digit'
           }) : null
         };
+        }
+      }
+      
+      if ('activity_name' in metadata || 'activity_type' in metadata) {
+        const activityName = String((metadata as Record<string, unknown>).activity_name || (metadata as Record<string, unknown>).activity_type || 'a workout');
+        
+        if (activity.collaboration_partners && activity.collaboration_partners.length > 0) {
+          const { data: partnerUsers } = await supabase
+            .from('users')
+            .select('full_name, username')
+            .in('id', activity.collaboration_partners);
+          
+          const partnerNames = partnerUsers?.map(user => 
+            user.full_name || user.username || 'Someone'
+          ).join(', ') || 'Partners';
+          
+          return {
+            messageParts: [
+              { text: 'Getting stronger together! ', bold: false, clickable: false },
+              { text: `${username} `, bold: true, clickable: true },
+              { text: 'just checked in for ', bold: false, clickable: false },
+              { text: `${activityName} `, bold: true, clickable: true },
+              { text: 'with ', bold: false, clickable: false },
+              { text: `${partnerNames}`, bold: true, clickable: true },
+              { text: '.', bold: false, clickable: false }
+            ],
+            type: activityName,
+            schedule: null
+          };
+        } else {
+          return {
+            messageParts: [
+              { text: `${username} checked in for `, bold: false, clickable: false },
+              { text: `${activityName}`, bold: true, clickable: true }
+            ],
+            type: activityName,
+            schedule: null
+          };
+        }
       }
       break;
       
@@ -143,8 +215,34 @@ function formatActivityMessage(activity: ActivityFeedItem): FormattedActivity {
       break;
       
     case 'general_post':
-    default:
       const postMetadata = metadata as PostActivityDetails;
+      
+      if (activity.collaboration_partners && activity.collaboration_partners.length > 0) {
+        const { data: partnerUsers } = await supabase
+          .from('users')
+          .select('full_name, username')
+          .in('id', activity.collaboration_partners);
+        
+        const partnerNames = partnerUsers?.map(user => 
+          user.full_name || user.username || 'Someone'
+        ).join(', ') || 'Partners';
+        
+        return {
+          messageParts: [
+            { text: 'Getting stronger together! ', bold: false, clickable: false },
+            { text: `${username} `, bold: true, clickable: true },
+            { text: 'just checked in for ', bold: false, clickable: false },
+            { text: `${postMetadata.title || 'a workout'} `, bold: true, clickable: true },
+            { text: 'at ', bold: false, clickable: false },
+            { text: `${activity.studios?.name || 'the studio'} `, bold: true, clickable: true },
+            { text: 'with ', bold: false, clickable: false },
+            { text: `${partnerNames}`, bold: true, clickable: true },
+            { text: '.', bold: false, clickable: false }
+          ],
+          type: postMetadata.title || null,
+          schedule: null
+        };
+      } else {
       return {
         messageParts: [
           { text: postMetadata.message || postMetadata.title || 'Posted an update', bold: false, clickable: false }
@@ -154,7 +252,17 @@ function formatActivityMessage(activity: ActivityFeedItem): FormattedActivity {
       };
   }
   
-  // Fallback
+    default:
+      const fallbackMetadata = metadata as PostActivityDetails;
+      return {
+        messageParts: [
+          { text: fallbackMetadata.message || fallbackMetadata.title || 'Posted an update', bold: false, clickable: false }
+        ],
+        type: null,
+        schedule: null
+      };
+  }
+  
   const fallbackMetadata = metadata as PostActivityDetails;
   return {
     messageParts: [
@@ -187,7 +295,6 @@ function getRelativeTime(dateString: string): string {
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the user ID from the authorization header
     const authHeader = request.headers.get('authorization');
     
     if (!authHeader) {
@@ -199,52 +306,30 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
-      console.error('Feed API: Authentication failed:', authError?.message);
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
 
-    // Get the user's friends (approved friendships)
-    // Check both directions since friendships can be initiated by either user
+    // Only get users that YOU follow (not users who follow you)
     const { data: friends } = await supabase
       .from('friends')
       .select('user_id, friend_id')
       .eq('approved', true)
-      .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
+      .eq('user_id', user.id); // Only get friendships where YOU are the user_id (you follow them)
 
-    // Extract friend IDs (excluding current user)
     const friendIds = new Set<string>();
     friends?.forEach(friendship => {
-      if (friendship.user_id === user.id) {
-        friendIds.add(friendship.friend_id);
-      } else {
-        friendIds.add(friendship.user_id);
-      }
+      friendIds.add(friendship.friend_id);
     });
 
     const friendIdsArray = Array.from(friendIds);
     
-    // Found friends for user
-    
     if (friendIdsArray.length === 0) {
-      // No friends = empty feed
-      // User has no friends, returning empty feed
       return NextResponse.json({
         success: true,
         data: [],
       });
     }
 
-    // Debug: Check if activity_feed table has any data at all
-    const { error: debugError } = await supabase
-      .from('activity_feed')
-      .select('id, user_id, type')
-      .limit(5);
-    
-    if (debugError) {
-      console.error('Debug: Error querying activity_feed:', debugError);
-    }
-
-    // Fetch activity feed from friends
     const { data: activities, error: activitiesError } = await supabase
       .from('activity_feed')
       .select(`
@@ -253,6 +338,7 @@ export async function GET(request: NextRequest) {
         type,
         studio_id,
         extra_data,
+        collaboration_partners,
         like_count,
         comment_count,
         created_at,
@@ -273,21 +359,14 @@ export async function GET(request: NextRequest) {
       .limit(20);
 
     if (activitiesError) {
-      console.error('Feed API: Error fetching activities:', activitiesError);
       return NextResponse.json(
         { error: 'Failed to fetch activities' },
         { status: 500 }
       );
     }
 
-          // Found activities from friends
-    if (activities && activities.length > 0) {
-              // First activity processed
-    }
-
-    // Transform activities for frontend
-    const transformedActivities = (activities as unknown as ActivityFeedItem[])?.map(activity => {
-      const formatted = formatActivityMessage(activity);
+    const transformedActivities = await Promise.all((activities as unknown as ActivityFeedItem[])?.map(async (activity) => {
+      const formatted = await formatActivityMessage(activity);
       const extraData = activity.extra_data || {};
       
       return {
@@ -305,17 +384,17 @@ export async function GET(request: NextRequest) {
         likeCount: activity.like_count || 0,
         commentCount: activity.comment_count || 0,
         activity_type: activity.type,
+        collaborationPartners: activity.collaboration_partners || [],
         image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } : undefined
       };
-    }) || [];
+    }) || []);
 
     return NextResponse.json({
       success: true,
       data: transformedActivities,
     });
 
-  } catch (error) {
-    console.error('Activity feed API error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -5,15 +5,12 @@ export async function GET(request: NextRequest) {
   try {
     // Get the user ID from the authorization header
     const authHeader = request.headers.get('authorization');
-    console.log('🔐 Events API: Auth header present:', !!authHeader);
     
     if (!authHeader) {
-      console.log('Events API: No authorization header');
       return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
     }
 
     const token = authHeader.replace('Bearer ', '');
-    console.log('🔐 Events API: Token length:', token.length);
     
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
@@ -23,11 +20,8 @@ export async function GET(request: NextRequest) {
     }
     
     if (!user) {
-      console.log('Events API: No user found');
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
-    
-    console.log('Events API: User authenticated:', user.id);
 
     // Events coming soon
     return NextResponse.json({

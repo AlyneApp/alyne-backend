@@ -71,14 +71,14 @@ export class WebScraper {
       const scrapingPromise = this._scrapeClasses(websiteUrl, date, studioAddress);
       return await Promise.race([scrapingPromise, timeoutPromise]);
     } catch (error) {
-      console.log('❌ Scraping error:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Scraping error:', error instanceof Error ? error.message : 'Unknown error');
       return [];
     }
   }
 
   static getScrapingConfig(websiteUrl: string): 'mariana' | 'universal' {
     const url = websiteUrl.toLowerCase();
-    console.log('🔍 URL check:', url, 'includes marianaiframes.com:', url.includes('marianaiframes.com'));
+
     
     if (url.includes('marianaiframes.com')) {
       return 'mariana';
@@ -107,7 +107,7 @@ export class WebScraper {
       });
       
       const scrapingType = WebScraper.getScrapingConfig(websiteUrl);
-      console.log('🔧 Scraping config:', scrapingType, 'for URL:', websiteUrl);
+
       
       if (scrapingType === 'mariana') {
         return await this.marianaIframeScraping(page, date, studioAddress);
@@ -116,7 +116,7 @@ export class WebScraper {
       }
       
     } catch (error) {
-      console.error('❌ Web scraping error:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Web scraping error:', error instanceof Error ? error.message : 'Unknown error');
       return [];
     } finally {
       await this.close();
@@ -302,8 +302,8 @@ export class WebScraper {
         source: 'web_scraping' as const
       }));
       
-    } catch (error) {
-      console.log('❌ Mariana iframe scraping error:', error instanceof Error ? error.message : 'Unknown error');
+    } catch {
+
       return [];
     }
   }
@@ -458,16 +458,16 @@ export class WebScraper {
           price: null,
           start_time: classData.time,
           instructor: classData.instructor || null,
-          is_available: true,
-          total_booked: 0,
+        is_available: true,
+        total_booked: 0,
           source: 'web_scraping' as const
         }));
       
-    } catch (error) {
-      console.log('❌ Universal scraping error:', error instanceof Error ? error.message : 'Unknown error');
+    } catch {
+      console.error('Universal scraping error: Unknown error');
       return [];
-    }
   }
+}
 
   private extractDuration(durationText: string): number | null {
     if (!durationText) return null;

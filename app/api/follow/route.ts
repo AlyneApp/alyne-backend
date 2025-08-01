@@ -26,24 +26,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot add yourself as friend' }, { status: 400 });
     }
 
-    // Check if friendship already exists (in either direction)
-    const { data: existingFriendship, error: checkError } = await supabase
+    // Check if current user already follows the target user
+    const { data: iFollowData } = await supabase
       .from('friends')
       .select('id, approved')
-      .or(`and(user_id.eq.${user.id},friend_id.eq.${user_id}),and(user_id.eq.${user_id},friend_id.eq.${user.id})`)
-      .single();
+      .eq('user_id', user.id)
+      .eq('friend_id', user_id)
+      .maybeSingle();
 
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('Error checking friendship status:', checkError);
-      return NextResponse.json({ error: 'Failed to check friendship status', details: checkError }, { status: 500 });
-    }
-
-    if (existingFriendship) {
-      // Friendship exists, so remove it
+    if (iFollowData) {
+      // Current user already follows target user, so remove that friendship
       const { error: unfriendError } = await supabase
         .from('friends')
         .delete()
-        .eq('id', existingFriendship.id);
+        .eq('id', iFollowData.id);
 
       if (unfriendError) {
         console.error('Error removing friendship:', unfriendError);
@@ -51,14 +47,14 @@ export async function POST(request: NextRequest) {
       }
 
       // Check new status after removal
-      const { data: iFollowData } = await supabase
+      const { data: newIFollowData } = await supabase
         .from('friends')
         .select('id')
         .eq('user_id', user.id)
         .eq('friend_id', user_id)
         .eq('approved', true)
         .maybeSingle();
-      const { data: followsMeData } = await supabase
+      const { data: newFollowsMeData } = await supabase
         .from('friends')
         .select('id')
         .eq('user_id', user_id)
@@ -69,33 +65,74 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         is_following: false,
-        i_follow: !!iFollowData,
-        follows_me: !!followsMeData,
+        i_follow: !!newIFollowData,
+        follows_me: !!newFollowsMeData,
+        is_pending: false,
         message: 'Successfully removed friend'
       });
     } else {
-      // No friendship exists, so create one
-      const { error: friendError } = await supabase
+      // Check if the user being followed has a private account
+      const { data: targetUser, error: userError } = await supabase
+        .from('users')
+        .select('id, username, full_name, is_private')
+        .eq('id', user_id)
+        .single();
+
+      if (userError || !targetUser) {
+        console.error('Error fetching target user:', userError);
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+
+      // Determine if auto-approval should happen
+      const shouldAutoApprove = !targetUser.is_private;
+
+      // Create the friendship request
+      const { data: newFriendship, error: friendError } = await supabase
         .from('friends')
         .insert({
           user_id: user.id,
           friend_id: user_id,
-          approved: true // Auto-approve for simplicity
-        });
+          approved: shouldAutoApprove
+        })
+        .select('id')
+        .single();
 
       if (friendError) {
         console.error('Error adding friend:', friendError);
         return NextResponse.json({ error: 'Failed to add friend' }, { status: 500 });
       }
 
+      // Get current user's profile for notification
+      const { data: currentUserProfile } = await supabase
+        .from('users')
+        .select('username, full_name')
+        .eq('id', user.id)
+        .single();
+
+      const followerName = currentUserProfile?.full_name || currentUserProfile?.username || 'Someone';
+
+      // Create notification for the user being followed
+      const notificationMessage = shouldAutoApprove 
+        ? `${followerName} is now following you. Follow back?`
+        : `${followerName} requested to follow you`;
+
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          type: shouldAutoApprove ? 'follow' : 'follow_request',
+          message: notificationMessage,
+          from_user_id: user.id,
+          to_user_id: user_id,
+          related_id: newFriendship.id,
+          is_read: false
+        });
+
+      if (notificationError) {
+        console.error('Error creating notification:', notificationError);
+        // Don't fail the request if notification creation fails
+      }
+
       // Check new status after adding
-      const { data: iFollowData } = await supabase
-        .from('friends')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('friend_id', user_id)
-        .eq('approved', true)
-        .maybeSingle();
       const { data: followsMeData } = await supabase
         .from('friends')
         .select('id')
@@ -106,10 +143,12 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        is_following: true,
-        i_follow: !!iFollowData,
+        is_following: shouldAutoApprove,
+        i_follow: true, // Always true since we just created the relationship
         follows_me: !!followsMeData,
-        message: 'Successfully added friend'
+        is_pending: !shouldAutoApprove,
+        message: shouldAutoApprove ? 'Successfully added friend' : 'Follow request sent',
+        requires_approval: !shouldAutoApprove
       });
     }
 
