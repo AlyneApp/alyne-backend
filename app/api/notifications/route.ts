@@ -175,7 +175,7 @@ export async function GET(request: NextRequest) {
       data: transformedNotifications
     });
 
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -220,12 +220,8 @@ export async function POST(request: NextRequest) {
       message: 'Notification created successfully'
     });
 
-  } catch (error) {
-    console.error('Create notification API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -264,7 +260,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
 
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -300,8 +296,7 @@ export async function DELETE(request: NextRequest) {
       message: 'Notification deleted successfully'
     });
 
-  } catch (error) {
-    console.error('Delete notification API error:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
