@@ -371,6 +371,7 @@ export async function GET(request: NextRequest) {
       
       return {
         id: activity.id,
+        userId: activity.user_id, // Add user ID for navigation
         avatarUrl: activity.users?.avatar_url || '',
         username: activity.users?.username || '',
         fullName: activity.users?.full_name || '',
@@ -385,7 +386,10 @@ export async function GET(request: NextRequest) {
         commentCount: activity.comment_count || 0,
         activity_type: activity.type,
         collaborationPartners: activity.collaboration_partners || [],
-        image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } : undefined
+        image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } : undefined,
+        routeData: 'route_data' in extraData ? extraData.route_data : undefined,
+        distance: 'distance' in extraData ? extraData.distance : undefined,
+        duration: 'duration' in extraData ? extraData.duration : undefined
       };
     }) || []);
 

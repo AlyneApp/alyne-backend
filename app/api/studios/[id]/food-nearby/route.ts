@@ -40,13 +40,8 @@ export async function GET(
     console.log('Google Places API key loaded:', googleApiKey ? 'YES' : 'NO');
     
     if (!googleApiKey) {
-      // Fallback to mock data if no API key
-      const mockFoodPlaces = [
-        { id: '1', name: "Joe's Pizza", distance: 500, unit: 'm away', rating: 4.5, price_level: 2, vicinity: '123 Main St', image_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=300&h=200&fit=crop' },
-        { id: '2', name: 'Green Salad Bar', distance: 800, unit: 'm away', rating: 4.2, price_level: 3, vicinity: '456 Oak Ave', image_url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=300&h=200&fit=crop' },
-        { id: '3', name: 'Cafe Latte', distance: 300, unit: 'm away', rating: 4.0, price_level: 2, vicinity: '789 Pine St', image_url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=300&h=200&fit=crop' },
-      ];
-      return NextResponse.json({ success: true, data: mockFoodPlaces });
+      console.log('No Google Places API key configured');
+      return NextResponse.json({ success: true, data: [] });
     }
 
     // First, geocode the address to get coordinates
@@ -58,51 +53,13 @@ export async function GET(
     
     if (geocodeData.status !== 'OK' || !geocodeData.results || geocodeData.results.length === 0) {
       console.error('Geocoding failed:', geocodeData.status, geocodeData.error_message);
-      // Fallback to mock data
-      const mockFoodPlaces = [
-        { id: '1', name: "Joe's Pizza", distance: 500, unit: 'm away', rating: 4.5, price_level: 2, vicinity: '123 Main St', image_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=300&h=200&fit=crop' },
-        { id: '2', name: 'Green Salad Bar', distance: 800, unit: 'm away', rating: 4.2, price_level: 3, vicinity: '456 Oak Ave', image_url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=300&h=200&fit=crop' },
-        { id: '3', name: 'Cafe Latte', distance: 300, unit: 'm away', rating: 4.0, price_level: 2, vicinity: '789 Pine St', image_url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=300&h=200&fit=crop' },
-      ];
-      return NextResponse.json({ success: true, data: mockFoodPlaces });
+      return NextResponse.json({ success: true, data: [] });
     }
     
     const location = geocodeData.results[0].geometry.location;
     const coordinates = `${location.lat},${location.lng}`;
     console.log('Geocoded coordinates:', coordinates);
     
-    // Search for nearby restaurants using Google Places API with coordinates
-    const searchUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${coordinates}&radius=1000&type=restaurant&key=${googleApiKey}`;
-    console.log('Google Places API URL:', searchUrl);
-    
-    const searchResponse = await fetch(searchUrl);
-
-    
-    if (!searchResponse.ok) {
-      console.error('Google Places API error:', searchResponse.status, searchResponse.statusText);
-      // Fallback to mock data on API error
-      const mockFoodPlaces = [
-        { id: '1', name: "Joe's Pizza", distance: 500, unit: 'm away', rating: 4.5, price_level: 2, vicinity: '123 Main St', image_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=300&h=200&fit=crop' },
-        { id: '2', name: 'Green Salad Bar', distance: 800, unit: 'm away', rating: 4.2, price_level: 3, vicinity: '456 Oak Ave', image_url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=300&h=200&fit=crop' },
-        { id: '3', name: 'Cafe Latte', distance: 300, unit: 'm away', rating: 4.0, price_level: 2, vicinity: '789 Pine St', image_url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=300&h=200&fit=crop' },
-      ];
-      return NextResponse.json({ success: true, data: mockFoodPlaces });
-    }
-    
-    const searchData = await searchResponse.json();
-
-
-    if (searchData.status !== 'OK' || !searchData.results) {
-      console.error('Google Places API error:', searchData.status, searchData.error_message);
-      // Fallback to mock data
-      const mockFoodPlaces = [
-        { id: '1', name: "Joe's Pizza", distance: 500, unit: 'm away', rating: 4.5, price_level: 2, vicinity: '123 Main St', image_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=300&h=200&fit=crop' },
-        { id: '2', name: 'Green Salad Bar', distance: 800, unit: 'm away', rating: 4.2, price_level: 3, vicinity: '456 Oak Ave', image_url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=300&h=200&fit=crop' },
-        { id: '3', name: 'Cafe Latte', distance: 300, unit: 'm away', rating: 4.0, price_level: 2, vicinity: '789 Pine St', image_url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=300&h=200&fit=crop' },
-      ];
-      return NextResponse.json({ success: true, data: mockFoodPlaces });
-    }
-
     // Define Google Places API response types
     interface GooglePlace {
       place_id: string;
@@ -116,40 +73,70 @@ export async function GET(
       }>;
       types?: string[];
     }
+    
+    // Search for nearby healthy food options using Google Places API with optimized keywords
+    const healthyKeywords = [
+      'healthy food', 'organic', 'salad bar', 'juice bar', 'smoothie', 'brunch'
+    ];
+    
+    // Search for each healthy keyword using nearbysearch
+    const searchPromises = healthyKeywords.map(async (keyword) => {
+      try {
+        const nearbySearchUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${coordinates}&radius=2000&type=restaurant&keyword=${encodeURIComponent(keyword)}&key=${googleApiKey}`;
+        console.log(`Searching for "${keyword}":`, nearbySearchUrl);
+        
+        const searchResponse = await fetch(nearbySearchUrl);
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          console.log(`"${keyword}" search response status:`, searchData.status);
+          console.log(`"${keyword}" search results count:`, searchData.results?.length || 0);
+          
+          if (searchData.status === 'OK' && searchData.results) {
+            return searchData.results as GooglePlace[];
+          } else {
+            console.error(`"${keyword}" search error:`, searchData.status, searchData.error_message);
+            return [];
+          }
+        } else {
+          console.error(`"${keyword}" search request failed:`, searchResponse.status, searchResponse.statusText);
+          return [];
+        }
+      } catch (error) {
+        console.error(`Error searching for "${keyword}":`, error);
+        return [];
+      }
+    });
+    
+    // Wait for all searches to complete in parallel
+    const searchResults = await Promise.all(searchPromises);
+    const allResults = searchResults.flat();
+    
+    // Remove duplicates based on place_id
+    const uniqueResults = allResults.filter((place, index, self) => 
+      index === self.findIndex(p => p.place_id === place.place_id)
+    );
+    
+    console.log(`Found ${uniqueResults.length} unique healthy food options`);
+    
+    // Check if we found any results
+    if (uniqueResults.length === 0) {
+      console.log('No healthy food places found');
+      return NextResponse.json({ success: true, data: [] });
+    }
 
     // Transform the places data for frontend
-    const foodPlaces = searchData.results.slice(0, 10).map((place: GooglePlace) => {
+    const foodPlaces = uniqueResults.slice(0, 15).map((place: GooglePlace) => {
       let imageUrl = null;
       
-      // Try to get photo from Google Places API
+      // Always try to get photo from Google Places API first
       if (place.photos && place.photos.length > 0) {
         const photo = place.photos[0];
         imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=300&maxheight=200&photo_reference=${photo.photo_reference}&key=${googleApiKey}`;
-
+        console.log(`📸 Using Google Places photo for "${place.name}"`);
       } else {
-        // Fallback to category-based images
-        const types = place.types || [];
-        const typeString = types.join(' ').toLowerCase();
-        
-        if (typeString.includes('pizza')) {
-          imageUrl = 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=300&h=200&fit=crop';
-        } else if (typeString.includes('mexican')) {
-          imageUrl = 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=300&h=200&fit=crop';
-        } else if (typeString.includes('bakery') || typeString.includes('dessert')) {
-          imageUrl = 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=300&h=200&fit=crop';
-        } else if (typeString.includes('cafe') || typeString.includes('coffee')) {
-          imageUrl = 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=300&h=200&fit=crop';
-        } else if (typeString.includes('sandwich') || typeString.includes('deli')) {
-          imageUrl = 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=300&h=200&fit=crop';
-        } else if (typeString.includes('asian') || typeString.includes('chinese') || typeString.includes('japanese') || typeString.includes('thai')) {
-          imageUrl = 'https://images.unsplash.com/photo-1553621042-f6e147245754?w=300&h=200&fit=crop';
-        } else if (typeString.includes('italian')) {
-          imageUrl = 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=300&h=200&fit=crop';
-        } else {
-          // Default restaurant image
-          imageUrl = 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=300&h=200&fit=crop';
-        }
-        console.log(`📸 Using Unsplash fallback for "${place.name}" (${types.join(', ')}):`, imageUrl);
+        // Only if Google doesn't have photos, use a simple placeholder
+        imageUrl = null; // Let frontend handle missing images
+        console.log(`📸 No Google Places photo available for "${place.name}"`);
       }
       
       return {
@@ -170,12 +157,6 @@ export async function GET(
     });
   } catch (error) {
     console.error('Error in food nearby API:', error);
-    // Fallback to mock data on any error
-    const mockFoodPlaces = [
-      { id: '1', name: "Joe's Pizza", distance: 500, unit: 'm away', rating: 4.5, price_level: 2, vicinity: '123 Main St', image_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=300&h=200&fit=crop' },
-      { id: '2', name: 'Green Salad Bar', distance: 800, unit: 'm away', rating: 4.2, price_level: 3, vicinity: '456 Oak Ave', image_url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=300&h=200&fit=crop' },
-      { id: '3', name: 'Cafe Latte', distance: 300, unit: 'm away', rating: 4.0, price_level: 2, vicinity: '789 Pine St', image_url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=300&h=200&fit=crop' },
-    ];
-    return NextResponse.json({ success: true, data: mockFoodPlaces });
+    return NextResponse.json({ success: true, data: [] });
   }
 } 

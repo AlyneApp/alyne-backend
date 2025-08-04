@@ -32,7 +32,10 @@ export async function GET(request: NextRequest) {
         id,
         username,
         full_name,
-        avatar_url
+        avatar_url,
+        created_at,
+        followers_count,
+        following_count
       `)
       .eq('id', user.id)
       .single();
@@ -52,9 +55,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get the count of posts this user has made
+    const { count: postsCount, error: postsError } = await supabase
+      .from('activity_feed')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id);
+
+    if (postsError) {
+      console.error('Error fetching posts count:', postsError);
+      // Continue without posts count
+    }
+
     return NextResponse.json({
       success: true,
-      data: userProfile,
+      data: {
+        ...userProfile,
+        posts_count: postsCount || 0,
+      },
     });
 
   } catch (error) {
