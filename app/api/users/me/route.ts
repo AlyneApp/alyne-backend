@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
         created_at,
         followers_count,
         following_count,
-        is_private
+        is_private,
+        wellness_visible
       `)
       .eq('id', user.id)
       .single();
@@ -67,13 +68,17 @@ export async function GET(request: NextRequest) {
       // Continue without posts count
     }
 
+    const responseData = {
+      ...userProfile,
+      posts_count: postsCount || 0,
+      can_view_content: true,
+    };
+    
+    console.log('Current user profile data:', responseData);
+
     return NextResponse.json({
       success: true,
-      data: {
-        ...userProfile,
-        posts_count: postsCount || 0,
-        can_view_content: true,
-      },
+      data: responseData,
     });
 
   } catch (error) {
@@ -111,7 +116,7 @@ export async function PATCH(request: NextRequest) {
 
     // Get the request body
     const body = await request.json();
-    const { is_private, full_name, username, avatar_url } = body;
+    const { is_private, full_name, username, avatar_url, wellness_visible } = body;
 
     // Build update object with only provided fields
     const updateData: any = {};
@@ -119,6 +124,7 @@ export async function PATCH(request: NextRequest) {
     if (full_name !== undefined) updateData.full_name = full_name;
     if (username !== undefined) updateData.username = username;
     if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
+    if (typeof wellness_visible === 'boolean') updateData.wellness_visible = wellness_visible;
 
     // Update the user's profile data
     const { data: updatedProfile, error: updateError } = await supabase

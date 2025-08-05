@@ -20,22 +20,16 @@ export async function GET(
 
     const { id } = await params;
 
-    // Get the target user's profile data
+    // Get the target user's profile data - try selecting all fields first
     const { data: targetUser, error: userError } = await supabase
       .from('users')
-      .select(`
-        id,
-        username,
-        full_name,
-        avatar_url,
-        created_at,
-        followers_count,
-        following_count,
-        posts_count,
-        is_private
-      `)
+      .select('*')
       .eq('id', id)
       .single();
+
+    console.log('Raw database response:', targetUser);
+    console.log('Database error:', userError);
+    console.log('Wellness visible from DB:', targetUser?.wellness_visible, typeof targetUser?.wellness_visible);
 
     if (userError || !targetUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -54,6 +48,12 @@ export async function GET(
     // Check if current user can view the profile content
     const isOwnProfile = user.id === id;
     const canViewContent = isOwnProfile || !targetUser.is_private || isFollowing;
+
+    console.log('User profile data:', {
+      ...targetUser,
+      is_following: isFollowing,
+      can_view_content: canViewContent,
+    });
 
     return NextResponse.json({
       success: true,

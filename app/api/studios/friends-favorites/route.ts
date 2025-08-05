@@ -100,6 +100,7 @@ export async function GET(request: NextRequest) {
     // Step 3: Group by studio and collect friend information for each like
     const studioLikeCounts = new Map();
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     studioLikes.forEach((like: any) => {
       if (!like.studios || !like.users) {
         return;
