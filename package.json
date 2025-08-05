@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "precommit": "npm run lint && npm run build",
-    "check": "npm run lint && npm run build && echo '✅ All checks passed!'"
+    "check": "npm run lint && npm run build && echo '✅ All checks passed!'",
+    "setup-storage": "node scripts/setup-storage.js"
   },
   "dependencies": {
     "@sparticuz/chromium": "^138.0.2",

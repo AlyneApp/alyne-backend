@@ -1,24 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
-interface User {
-  id: string;
-  username: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  followers_count: number | null;
-  following_count: number | null;
-}
 
-interface Follower {
-  user_id: string;
-  users: User[];
-}
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -80,8 +65,8 @@ export async function GET(request: NextRequest) {
 
     // Transform the data
     const transformedFollowers = followers
-      ?.map((follower: Follower) => {
-        const user = follower.users[0]; // Get the first (and only) user from the array
+      ?.map((follower: any) => {
+        const user = follower.users; // users is an object, not an array
         if (!user) return null;
         
         return {

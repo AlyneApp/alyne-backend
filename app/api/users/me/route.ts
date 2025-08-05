@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
         avatar_url,
         created_at,
         followers_count,
-        following_count
+        following_count,
+        is_private
       `)
       .eq('id', user.id)
       .single();
@@ -71,11 +72,77 @@ export async function GET(request: NextRequest) {
       data: {
         ...userProfile,
         posts_count: postsCount || 0,
+        can_view_content: true,
       },
     });
 
   } catch (error) {
     console.error('Users/me API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    // Get the authorization header
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Authorization header required' },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7);
+
+    // Verify the token and get the user
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.error('Auth error:', authError);
+      return NextResponse.json(
+        { error: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+
+    // Get the request body
+    const body = await request.json();
+    const { is_private, full_name, username, avatar_url } = body;
+
+    // Build update object with only provided fields
+    const updateData: any = {};
+    if (typeof is_private === 'boolean') updateData.is_private = is_private;
+    if (full_name !== undefined) updateData.full_name = full_name;
+    if (username !== undefined) updateData.username = username;
+    if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
+
+    // Update the user's profile data
+    const { data: updatedProfile, error: updateError } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating user profile:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to update user profile' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: updatedProfile,
+    });
+
+  } catch (error) {
+    console.error('Users/me PATCH API error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

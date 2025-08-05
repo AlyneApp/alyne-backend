@@ -31,7 +31,8 @@ export async function GET(
         created_at,
         followers_count,
         following_count,
-        posts_count
+        posts_count,
+        is_private
       `)
       .eq('id', id)
       .single();
@@ -49,12 +50,17 @@ export async function GET(
       .single();
 
     const isFollowing = !!followData?.approved;
+    
+    // Check if current user can view the profile content
+    const isOwnProfile = user.id === id;
+    const canViewContent = isOwnProfile || !targetUser.is_private || isFollowing;
 
     return NextResponse.json({
       success: true,
       data: {
         ...targetUser,
         is_following: isFollowing,
+        can_view_content: canViewContent,
       },
     });
 
