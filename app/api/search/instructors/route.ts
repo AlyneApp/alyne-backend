@@ -58,7 +58,7 @@ async function enhanceUsersWithFollowData(users: Array<{
   return enhancedUsers;
 }
 
-// GET - Search members (existing functionality)
+// GET - Search instructors (filtered by is_instructor = true)
 export async function GET(request: NextRequest) {
   try {
     // Get the user ID from the authorization header
@@ -84,9 +84,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Searching for members with query
+    // Searching for instructors with query
 
-    // Search for users with their friend counts calculated directly
+    // Search for users with is_instructor = true and their friend counts calculated directly
     const { data: users } = await supabase
       .from('users')
       .select(`
@@ -96,20 +96,21 @@ export async function GET(request: NextRequest) {
         avatar_url,
         followers_count
       `)
+      .eq('is_instructor', true) // Only get users who are instructors
       .neq('id', user.id) // Exclude current user
       .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
       .limit(4)
       .order('username');
 
     if (!users || users.length === 0) {
-      // No users found for query
+      // No instructors found for query
       return NextResponse.json({
         success: true,
         data: [],
       });
     }
 
-    // Found users for search query
+    // Found instructors for search query
 
     // Enhance users with follow data
     const enhancedUsers = await enhanceUsersWithFollowData(users, user.id);
@@ -122,7 +123,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Member search API error:', error);
+    console.error('Instructor search API error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -130,9 +131,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Get recommended members
+// POST - Get recommended instructors (filtered by is_instructor = true)
 export async function POST(request: NextRequest) {
   try {
+    // Get the user ID from the authorization header
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
@@ -145,40 +147,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
 
-    // First get users the current user already follows
-    const { data: followedUsers } = await supabase
-      .from('friends')
-      .select('friend_id')
-      .eq('user_id', user.id)
-      .eq('approved', true);
+    // Get limit from URL parameters
+    const limit = new URL(request.url).searchParams.get('limit');
+    const limitNumber = limit ? parseInt(limit) : 10;
 
-    const followedIds = followedUsers?.map(f => f.friend_id) || [];
-    
-    // Get top 4 users the current user doesn't follow
-    const { data: users } = await supabase
+    // First, get all instructors with their follower counts
+    const { data: allInstructors } = await supabase
       .from('users')
-      .select('id, username, full_name, avatar_url, followers_count')
-      .neq('id', user.id)
-      .not('id', 'in', `(${followedIds.length > 0 ? followedIds.join(',') : 'NULL'})`)
-      .limit(4)
-      .order('followers_count', { ascending: false });
+      .select(`
+        id, 
+        username, 
+        full_name, 
+        avatar_url,
+        followers_count
+      `)
+      .eq('is_instructor', true) // Only get users who are instructors
+      .neq('id', user.id) // Exclude current user
+      .order('followers_count', { ascending: false }); // Order by follower count (most popular first)
 
-    if (!users || users.length === 0) {
+    if (!allInstructors || allInstructors.length === 0) {
       return NextResponse.json({
         success: true,
         data: [],
       });
     }
 
-    // Enhance users with follow data
-    const enhancedUsers = await enhanceUsersWithFollowData(users, user.id);
+    // Enhance all instructors with follow data
+    const enhancedInstructors = await enhanceUsersWithFollowData(allInstructors, user.id);
+
+    // Filter out instructors that the user already follows
+    const notFollowingInstructors = enhancedInstructors.filter(instructor => !instructor.i_follow);
+
+    // Take the top instructors by follower count (who the user doesn't follow)
+    const recommendedInstructors = notFollowingInstructors.slice(0, limitNumber);
 
     return NextResponse.json({
       success: true,
-      data: enhancedUsers,
+      data: recommendedInstructors,
     });
 
   } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Recommended instructors API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
-} 
+}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, createAuthenticatedClient } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,6 +12,10 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
+    
+    // Create an authenticated client with the user's JWT token
+    const authenticatedSupabase = createAuthenticatedClient(token);
+    
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
@@ -27,7 +31,7 @@ export async function GET(request: NextRequest) {
     const targetUserId = searchParams.get('userId') || user.id;
 
     // Get all studios the target user has saved
-    const { data: saves, error: savesError } = await supabase
+    const { data: saves, error: savesError } = await authenticatedSupabase
       .from('studio_saves')
       .select(`
         studio_id,

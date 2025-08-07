@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, createAuthenticatedClient } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +13,9 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
+
+    // Create an authenticated client with the user's JWT token
+    const authenticatedSupabase = createAuthenticatedClient(token);
 
     // Verify the token and get the current user
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
@@ -29,8 +32,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get('userId') || user.id;
 
-    // Get the target user's highest-rated studios
-    const { data: ratings, error: ratingsError } = await supabase
+    // Get the target user's highest-rated studios (one per studio)
+    const { data: ratings, error: ratingsError } = await authenticatedSupabase
       .from('activity_ratings')
       .select(`
         rating,
@@ -39,8 +42,7 @@ export async function GET(request: NextRequest) {
       `)
       .eq('user_id', targetUserId)
       .eq('rating_type', 'studio')
-      .order('rating', { ascending: false })
-      .limit(5);
+      .order('rating', { ascending: false });
 
     if (ratingsError) {
       console.error('Error fetching user ratings:', ratingsError);
@@ -59,11 +61,23 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get studio IDs from ratings
-    const studioIds = ratings.map(rating => rating.rated_entity_id);
+    // Deduplicate studios and keep only the highest rating for each
+    const uniqueRatings = ratings.reduce((acc, rating) => {
+      const existingRating = acc.find(r => r.rated_entity_id === rating.rated_entity_id);
+      if (!existingRating || rating.rating > existingRating.rating) {
+        // Remove existing rating for this studio if it exists
+        const filtered = acc.filter(r => r.rated_entity_id !== rating.rated_entity_id);
+        // Add the new (higher) rating
+        return [...filtered, rating];
+      }
+      return acc;
+    }, [] as typeof ratings);
+
+    // Get studio IDs from unique ratings (limit to top 5)
+    const studioIds = uniqueRatings.slice(0, 5).map(rating => rating.rated_entity_id);
 
     // Fetch studio data separately
-    const { data: studios, error: studiosError } = await supabase
+    const { data: studios, error: studiosError } = await authenticatedSupabase
       .from('studios')
       .select(`
         id,
@@ -90,7 +104,7 @@ export async function GET(request: NextRequest) {
     }, {} as { [key: string]: typeof studios[0] }) || {};
 
     // Transform the data to include studio information
-    const favorites = ratings.map(rating => ({
+    const favorites = uniqueRatings.slice(0, 5).map(rating => ({
       id: rating.rated_entity_id,
       rating: rating.rating,
       studio: studioMap[rating.rated_entity_id] || null,

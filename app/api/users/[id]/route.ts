@@ -23,7 +23,15 @@ export async function GET(
     // Get the target user's profile data - try selecting all fields first
     const { data: targetUser, error: userError } = await supabase
       .from('users')
-      .select('*')
+      .select(`
+        id,
+        username,
+        full_name,
+        avatar_url,
+        created_at,
+        is_private,
+        wellness_visible
+      `)
       .eq('id', id)
       .single();
 
@@ -33,6 +41,28 @@ export async function GET(
 
     if (userError || !targetUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Calculate correct follower count (only approved followers)
+    const { count: followersCount, error: followersError } = await supabase
+      .from('friends')
+      .select('*', { count: 'exact', head: true })
+      .eq('friend_id', id)
+      .eq('approved', true);
+
+    if (followersError) {
+      console.error('Error fetching followers count:', followersError);
+    }
+
+    // Calculate correct following count (only approved following)
+    const { count: followingCount, error: followingError } = await supabase
+      .from('friends')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', id)
+      .eq('approved', true);
+
+    if (followingError) {
+      console.error('Error fetching following count:', followingError);
     }
 
     // Check if current user follows the target user
@@ -51,6 +81,8 @@ export async function GET(
 
     console.log('User profile data:', {
       ...targetUser,
+      followers_count: followersCount || 0,
+      following_count: followingCount || 0,
       is_following: isFollowing,
       can_view_content: canViewContent,
     });
@@ -59,6 +91,8 @@ export async function GET(
       success: true,
       data: {
         ...targetUser,
+        followers_count: followersCount || 0,
+        following_count: followingCount || 0,
         is_following: isFollowing,
         can_view_content: canViewContent,
       },

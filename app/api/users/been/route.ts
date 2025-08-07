@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, createAuthenticatedClient } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +13,9 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
+
+    // Create an authenticated client with the user's JWT token
+    const authenticatedSupabase = createAuthenticatedClient(token);
 
     // Verify the token and get the current user
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
@@ -30,7 +33,7 @@ export async function GET(request: NextRequest) {
     const targetUserId = searchParams.get('userId') || user.id;
 
     // Get the studios the target user has been to (based on check-in activities)
-    const { data: activities, error: activitiesError } = await supabase
+    const { data: activities, error: activitiesError } = await authenticatedSupabase
       .from('activity_feed')
       .select(`
         studio_id,
@@ -73,7 +76,7 @@ export async function GET(request: NextRequest) {
 
     // Get ratings for these studios
     const studioIds = beenToStudios.map(item => item.id);
-    const { data: ratings, error: ratingsError } = await supabase
+    const { data: ratings, error: ratingsError } = await authenticatedSupabase
       .from('activity_ratings')
       .select(`
         rated_entity_id,

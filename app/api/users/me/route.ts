@@ -34,8 +34,6 @@ export async function GET(request: NextRequest) {
         full_name,
         avatar_url,
         created_at,
-        followers_count,
-        following_count,
         is_private,
         wellness_visible
       `)
@@ -57,6 +55,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Calculate correct follower count (only approved followers)
+    const { count: followersCount, error: followersError } = await supabase
+      .from('friends')
+      .select('*', { count: 'exact', head: true })
+      .eq('friend_id', user.id)
+      .eq('approved', true);
+
+    if (followersError) {
+      console.error('Error fetching followers count:', followersError);
+    }
+
+    // Calculate correct following count (only approved following)
+    const { count: followingCount, error: followingError } = await supabase
+      .from('friends')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('approved', true);
+
+    if (followingError) {
+      console.error('Error fetching following count:', followingError);
+    }
+
     // Get the count of posts this user has made
     const { count: postsCount, error: postsError } = await supabase
       .from('activity_feed')
@@ -70,6 +90,8 @@ export async function GET(request: NextRequest) {
 
     const responseData = {
       ...userProfile,
+      followers_count: followersCount || 0,
+      following_count: followingCount || 0,
       posts_count: postsCount || 0,
       can_view_content: true,
     };
