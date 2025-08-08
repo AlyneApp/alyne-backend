@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseEdge } from '@/lib/supabase-edge';
 
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = [
@@ -8,8 +8,8 @@ const PUBLIC_ROUTES = [
   '/api/auth/login',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
-  '/api/studios/featured', // Allow public access to featured studios
-  '/api/search/events', // Allow public access to events search
+  '/api/studios/featured',
+  '/api/search/events',
 ];
 
 export async function middleware(request: NextRequest) {
@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  const { data: { user }, error } = await supabase.auth.getUser(token);
+  const { data: { user }, error } = await supabaseEdge.auth.getUser(token);
   if (error || !user) {
     return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
   }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { NotificationService, BaseNotification } from '@/lib/notifications';
 
 // Frontend notification interface
@@ -48,7 +48,7 @@ function getRelativeTime(dateString: string): string {
 
 // Helper function to fetch user data
 async function fetchUserData(userId: string) {
-  const { data: userData, error } = await supabase
+  const { data: userData, error } = await supabaseAdmin
     .from('users')
     .select('id, username, full_name, avatar_url')
     .eq('id', userId)
@@ -79,7 +79,7 @@ async function transformNotification(notification: BaseNotification, currentUser
   // Fetch follow state for follow notifications
   let followState = undefined;
   if (notification.type === 'follow' && fromUser) {
-    const { data: friendship, error: friendshipError } = await supabase
+    const { data: friendship, error: friendshipError } = await supabaseAdmin
       .from('friends')
       .select('approved')
       .eq('user_id', currentUserId)
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
     if (authError || !user) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
 
     // If countOnly is true, just return the unread count
     if (countOnly === 'true') {
-      const { count, error: countError } = await supabase
+      const { count, error: countError } = await supabaseAdmin
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('to_user_id', user.id)
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Otherwise, fetch all notifications
-    const { data: notifications, error } = await supabase
+    const { data: notifications, error } = await supabaseAdmin
       .from('notifications')
       .select('*')
       .eq('to_user_id', user.id)
@@ -163,6 +163,7 @@ export async function GET(request: NextRequest) {
       .limit(50);
 
     if (error) {
+      console.error('Error fetching notifications:', error);
       return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 });
     }
 
@@ -193,7 +194,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
     if (authError || !user) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
@@ -234,7 +235,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
     if (authError || !user) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
@@ -245,7 +246,7 @@ export async function PATCH(request: NextRequest) {
 
     // Mark all unread notifications as read in one query
     if (mark_all_unread) {
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseAdmin
         .from('notifications')
         .update({ is_read: true })
         .eq('to_user_id', user.id)
@@ -275,7 +276,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
     if (authError || !user) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });

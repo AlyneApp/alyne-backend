@@ -8,8 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "precommit": "npm run lint && npm run build",
-    "check": "npm run lint && npm run build && echo '✅ All checks passed!'",
-    "setup-storage": "node scripts/setup-storage.js"
+    "check": "npm run lint && npm run build && echo '✅ All checks passed!'"
   },
   "dependencies": {
     "@sparticuz/chromium": "^138.0.2",
@@ -18,6 +17,7 @@
     "apify-client": "^2.12.6",
     "axios": "^1.11.0",
     "cheerio": "^1.1.2",
+    "dotenv": "^17.2.1",
     "next": "15.3.3",
     "puppeteer": "^24.15.0",
     "puppeteer-core": "^24.15.0",

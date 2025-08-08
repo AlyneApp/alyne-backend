@@ -159,8 +159,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Transform the data to match the frontend interface
-    const transformedBookings = bookings?.map(booking => {
+    const { data: transfers, error: transfersError } = await authenticatedSupabase
+      .from('booking_transfers')
+      .select('original_booking_id, status')
+      .eq('transferrer_id', targetUserId)
+      .in('status', ['available', 'claimed', 'payment_pending']);
+
+    if (transfersError) {
+      console.error('Error fetching transfers:', transfersError);
+    }
+
+    const transferredBookingIds = new Set(
+      transfers?.map(transfer => transfer.original_booking_id) || []
+    );
+
+    const filteredBookings = bookings?.filter(booking => !transferredBookingIds.has(booking.id)) || [];
+
+    const transformedBookings = filteredBookings.map(booking => {
       const studio = Array.isArray(booking.studios) ? booking.studios[0] : booking.studios;
       return {
         id: booking.id,
@@ -184,7 +199,7 @@ export async function GET(request: NextRequest) {
         bookingId: booking.booking_id,
         companions: booking.companions || []
       };
-    }) || [];
+    });
 
     return NextResponse.json({
       success: true,

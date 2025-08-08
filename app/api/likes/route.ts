@@ -40,12 +40,44 @@ export async function POST(request: NextRequest) {
         .eq('activity_id', activity_id)
         .eq('user_id', user.id);
 
+      // Update like_count in activity_feed table
+      const { data: currentActivity } = await supabase
+        .from('activity_feed')
+        .select('like_count')
+        .eq('id', activity_id)
+        .single();
+
+      if (currentActivity) {
+        const newCount = Math.max(0, (currentActivity.like_count || 0) - 1);
+        
+        await supabase
+          .from('activity_feed')
+          .update({ like_count: newCount })
+          .eq('id', activity_id);
+      }
+
       return NextResponse.json({ success: true, liked: false });
     } else {
       // Like
       await supabase
         .from('activity_feed_likes')
         .insert({ activity_id, user_id: user.id });
+
+      // Update like_count in activity_feed table
+      const { data: currentActivity } = await supabase
+        .from('activity_feed')
+        .select('like_count')
+        .eq('id', activity_id)
+        .single();
+
+      if (currentActivity) {
+        const newCount = (currentActivity.like_count || 0) + 1;
+        
+        await supabase
+          .from('activity_feed')
+          .update({ like_count: newCount })
+          .eq('id', activity_id);
+      }
 
       return NextResponse.json({ success: true, liked: true });
     }
