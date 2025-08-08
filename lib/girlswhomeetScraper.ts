@@ -1,4 +1,4 @@
-import puppeteer, { Browser, Page } from 'puppeteer';
+import puppeteer, { Browser } from 'puppeteer';
 import chromium from '@sparticuz/chromium';
 
 export interface ScrapedEvent {

@@ -184,7 +184,8 @@ async function scrapeAndUpdateEvents() {
     if (scrapedEvents.length > 0) {
       console.log('\n📋 Example events:');
       scrapedEvents.slice(0, 3).forEach(event => {
-        console.log(`   • ${event.name} - ${event.location} (${event.date.toLocaleDateString()})`);
+        const eventDate = new Date(event.date);
+        console.log(`   • ${event.name} - ${event.location} (${eventDate.toLocaleDateString()})`);
       });
     }
     

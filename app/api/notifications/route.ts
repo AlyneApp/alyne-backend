@@ -48,6 +48,11 @@ function getRelativeTime(dateString: string): string {
 
 // Helper function to fetch user data
 async function fetchUserData(userId: string) {
+  if (!supabaseAdmin) {
+    console.error('supabaseAdmin not available');
+    return null;
+  }
+
   const { data: userData, error } = await supabaseAdmin
     .from('users')
     .select('id, username, full_name, avatar_url')
@@ -68,6 +73,11 @@ async function fetchUserData(userId: string) {
 
 // Transform backend notification to frontend format
 async function transformNotification(notification: BaseNotification, currentUserId: string): Promise<FrontendNotification> {
+  if (!supabaseAdmin) {
+    console.error('supabaseAdmin not available');
+    throw new Error('Database connection not available');
+  }
+
   const timeAgo = getRelativeTime(notification.created_at);
   
   // Fetch user data if from_user_id exists
@@ -101,8 +111,6 @@ async function transformNotification(notification: BaseNotification, currentUser
         isPending: false
       };
     }
-    
-
   }
   
   return {
@@ -121,6 +129,10 @@ async function transformNotification(notification: BaseNotification, currentUser
 // GET /api/notifications - Get notifications or unread count
 export async function GET(request: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
+    }
+
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
@@ -145,12 +157,13 @@ export async function GET(request: NextRequest) {
         .eq('is_read', false);
 
       if (countError) {
-        return NextResponse.json({ error: 'Failed to fetch unread count' }, { status: 500 });
+        console.error('Error getting notification count:', countError);
+        return NextResponse.json({ error: 'Failed to get notification count' }, { status: 500 });
       }
 
       return NextResponse.json({
         success: true,
-        unreadCount: count || 0
+        count: count || 0
       });
     }
 
@@ -187,6 +200,10 @@ export async function GET(request: NextRequest) {
 // POST /api/notifications - Create a notification
 export async function POST(request: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
+    }
+
     // Get the user ID from the authorization header
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
@@ -229,6 +246,10 @@ export async function POST(request: NextRequest) {
 // PATCH /api/notifications - Mark notification as read
 export async function PATCH(request: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
+    }
+
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
@@ -269,6 +290,10 @@ export async function PATCH(request: NextRequest) {
 // DELETE /api/notifications - Delete a notification
 export async function DELETE(request: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
+    }
+
     // Get the user ID from the authorization header
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {

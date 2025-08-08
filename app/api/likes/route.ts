@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
         .eq('activity_id', activity_id)
         .eq('user_id', user.id);
 
-      // Update like_count in activity_feed table
       const { data: currentActivity } = await supabase
         .from('activity_feed')
         .select('like_count')
