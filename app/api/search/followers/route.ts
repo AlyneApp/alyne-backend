@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
           full_name,
           avatar_url,
           followers_count,
-          following_count
+          following_count,
+          is_instructor
         )
       `)
       .eq('friend_id', userId)
@@ -45,19 +46,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch followers' }, { status: 500 });
     }
 
-    // Get current user's following status for each follower
+    // Get current user's following status and follow request status for each follower
     const { data: currentUserFollowing, error: followingError } = await supabase
       .from('friends')
-      .select('friend_id')
-      .eq('user_id', currentUser.id)
-      .eq('approved', true);
+      .select('friend_id, approved')
+      .eq('user_id', currentUser.id);
 
     if (followingError) {
       console.error('Error fetching current user following:', followingError);
       return NextResponse.json({ error: 'Failed to fetch following status' }, { status: 500 });
     }
 
-    const currentUserFollowingIds = new Set(currentUserFollowing?.map(f => f.friend_id) || []);
+    const currentUserFollowingIds = new Set(currentUserFollowing?.filter(f => f.approved).map(f => f.friend_id) || []);
+    const currentUserFollowRequests = new Map(currentUserFollowing?.map(f => [f.friend_id, f.approved ? 'approved' : 'pending']) || []);
 
     // Transform the data
     const transformedFollowers = followers
@@ -73,6 +74,8 @@ export async function GET(request: NextRequest) {
           followers_count: user.followers_count || 0,
           following_count: user.following_count || 0,
           is_following: currentUserFollowingIds.has(user.id),
+          follow_request_status: currentUserFollowRequests.get(user.id) || null,
+          is_instructor: user.is_instructor || false,
         };
       })
       .filter(Boolean);

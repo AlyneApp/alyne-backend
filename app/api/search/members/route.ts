@@ -9,6 +9,7 @@ async function enhanceUsersWithFollowData(users: Array<{
   full_name: string | null;
   avatar_url: string | null;
   followers_count: number;
+  is_instructor: boolean;
 }>, currentUserId: string) {
   if (!users || users.length === 0) return [];
 
@@ -48,8 +49,8 @@ async function enhanceUsersWithFollowData(users: Array<{
       avatar_url: searchUser.avatar_url,
       followers_count: followerCount,
       is_following: i_follow && followRelationship?.approved,
-      i_follow,
-      is_pending,
+      follow_request_status: followRelationship ? (followRelationship.approved ? 'approved' : 'pending') : null,
+      is_instructor: searchUser.is_instructor || false,
     };
 
     return enhancedUser;
@@ -94,7 +95,8 @@ export async function GET(request: NextRequest) {
         username, 
         full_name, 
         avatar_url,
-        followers_count
+        followers_count,
+        is_instructor
       `)
       .neq('id', user.id) // Exclude current user
       .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
@@ -157,7 +159,7 @@ export async function POST(request: NextRequest) {
     // Get top 4 users the current user doesn't follow
     const { data: users } = await supabase
       .from('users')
-      .select('id, username, full_name, avatar_url, followers_count')
+      .select('id, username, full_name, avatar_url, followers_count, is_instructor')
       .neq('id', user.id)
       .not('id', 'in', `(${followedIds.length > 0 ? followedIds.join(',') : 'NULL'})`)
       .limit(4)

@@ -43,14 +43,31 @@ export async function GET(
       full_name: string | null;
       avatar_url: string | null;
     }> = [];
+    
     if (studio.instructors && Array.isArray(studio.instructors) && studio.instructors.length > 0) {
-      const { data: instructorUsers, error: instructorError } = await supabaseAdmin!
-        .from('users')
-        .select('id, username, full_name, avatar_url')
-        .in('id', studio.instructors);
+      // Check if the first item is a UUID (user ID) or a string (name)
+      const firstInstructor = studio.instructors[0];
+      const isUUID = typeof firstInstructor === 'string' && 
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(firstInstructor);
+      
+      if (isUUID) {
+        // If instructors are UUIDs, fetch full user data
+        const { data: instructorUsers, error: instructorError } = await supabaseAdmin!
+          .from('users')
+          .select('id, username, full_name, avatar_url')
+          .in('id', studio.instructors);
 
-      if (!instructorError && instructorUsers) {
-        instructors = instructorUsers;
+        if (!instructorError && instructorUsers) {
+          instructors = instructorUsers;
+        }
+      } else {
+        // If instructors are names, create instructor objects with the names
+        instructors = studio.instructors.map((name: string, index: number) => ({
+          id: `name_${index}`,
+          username: name.toLowerCase().replace(/\s+/g, '_'),
+          full_name: name,
+          avatar_url: null
+        }));
       }
     }
 

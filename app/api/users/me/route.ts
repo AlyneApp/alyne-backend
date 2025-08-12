@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
         avatar_url,
         created_at,
         is_private,
-        wellness_visible
+        wellness_visible,
+        is_instructor
       `)
       .eq('id', user.id)
       .single();
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
       can_view_content: true,
     };
     
-    console.log('Current user profile data:', responseData);
+
 
     return NextResponse.json({
       success: true,
@@ -140,6 +141,15 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { is_private, full_name, username, avatar_url, wellness_visible } = body;
 
+    // Check if admin client is available for updates
+    if (!supabaseAdmin) {
+      console.error('Admin client not available');
+      return NextResponse.json(
+        { error: 'Service temporarily unavailable' },
+        { status: 503 }
+      );
+    }
+
     // Build update object with only provided fields
     const updateData: any = {};
     if (typeof is_private === 'boolean') updateData.is_private = is_private;
@@ -148,8 +158,18 @@ export async function PATCH(request: NextRequest) {
     if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
     if (typeof wellness_visible === 'boolean') updateData.wellness_visible = wellness_visible;
 
-    // Update the user's profile data
-    const { data: updatedProfile, error: updateError } = await supabase
+
+
+    // Update the user's profile data using the admin client to bypass RLS
+    if (!supabaseAdmin) {
+      console.error('Admin client not available');
+      return NextResponse.json(
+        { error: 'Service temporarily unavailable' },
+        { status: 503 }
+      );
+    }
+
+    const { data: updatedProfile, error: updateError } = await supabaseAdmin
       .from('users')
       .update(updateData)
       .eq('id', user.id)

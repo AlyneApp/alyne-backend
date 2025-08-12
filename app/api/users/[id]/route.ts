@@ -30,7 +30,8 @@ export async function GET(
         avatar_url,
         created_at,
         is_private,
-        wellness_visible
+        wellness_visible,
+        is_instructor
       `)
       .eq('id', id)
       .single();
@@ -65,7 +66,7 @@ export async function GET(
       console.error('Error fetching following count:', followingError);
     }
 
-    // Check if current user follows the target user
+    // Check if current user follows the target user and get follow request status
     const { data: followData } = await supabase
       .from('friends')
       .select('approved')
@@ -74,6 +75,7 @@ export async function GET(
       .single();
 
     const isFollowing = !!followData?.approved;
+    const followRequestStatus = followData ? (followData.approved ? 'approved' : 'pending') : null;
     
     // Check if current user can view the profile content
     const isOwnProfile = user.id === id;
@@ -84,6 +86,7 @@ export async function GET(
       followers_count: followersCount || 0,
       following_count: followingCount || 0,
       is_following: isFollowing,
+      follow_request_status: followRequestStatus,
       can_view_content: canViewContent,
     });
 
@@ -94,6 +97,7 @@ export async function GET(
         followers_count: followersCount || 0,
         following_count: followingCount || 0,
         is_following: isFollowing,
+        follow_request_status: followRequestStatus,
         can_view_content: canViewContent,
       },
     });
