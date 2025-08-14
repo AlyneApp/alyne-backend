@@ -15,16 +15,17 @@ export async function GET(
       );
     }
 
-    // Get all users who could potentially teach at this studio
-    // For now, we'll just get all users and let the frontend handle assignment
+    // Get only users who are instructors
     const { data: instructors, error } = await supabase
       .from('users')
       .select(`
         id,
         username,
         full_name,
-        avatar_url
+        avatar_url,
+        is_instructor
       `)
+      .eq('is_instructor', true)
       .order('full_name');
 
     if (error) {
