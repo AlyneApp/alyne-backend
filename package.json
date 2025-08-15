@@ -7,8 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "precommit": "npm run lint && npm run build",
-    "check": "npm run lint && npm run build && echo '✅ All checks passed!'"
+    "type-check": "tsc --noEmit",
+    "check": "npm run lint && npm run type-check && npm run build && echo '✅ All checks passed!'",
+    "precommit": "npm run check"
   },
   "dependencies": {
     "@sparticuz/chromium": "^138.0.2",
@@ -26,7 +27,6 @@
     "zod": "^3.25.64"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

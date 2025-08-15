@@ -69,18 +69,77 @@ async function formatActivityMessage(activity: ActivityFeedItem): Promise<Format
           
           const partnerNames = partnerUsers?.map(user => 
             user.full_name || user.username || 'Someone'
-          ).join(', ') || 'Partners';
+          ) || [];
           
+          if (partnerNames.length === 1) {
+            // With Another User (Others Only)
+            return {
+              messageParts: [
+                { text: `${username} and ${partnerNames[0]} took a `, bold: false, clickable: false },
+                { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                { text: 'class at ', bold: false, clickable: false },
+                { text: `${activity.studios.name}`, bold: true, clickable: true },
+                { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                { text: '.', bold: false, clickable: false }
+              ],
+              type: classMetadata.class_name,
+              schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+              }) : null
+            };
+          } else if (partnerNames.length === 2) {
+            // Group Class Attendance (Others Only) - 2 partners
+            return {
+              messageParts: [
+                { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} took a `, bold: false, clickable: false },
+                { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                { text: 'class at ', bold: false, clickable: false },
+                { text: `${activity.studios.name}`, bold: true, clickable: true },
+                { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                { text: '.', bold: false, clickable: false }
+              ],
+              type: classMetadata.class_name,
+              schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+              }) : null
+            };
+          } else {
+            // Group Class Attendance (Others Only) - 3+ partners
+            const firstTwo = partnerNames.slice(0, 2).join(', ');
+            const remaining = partnerNames.length - 2;
+            return {
+              messageParts: [
+                { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} took a `, bold: false, clickable: false },
+                { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                { text: 'class at ', bold: false, clickable: false },
+                { text: `${activity.studios.name}`, bold: true, clickable: true },
+                { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                { text: '.', bold: false, clickable: false }
+              ],
+              type: classMetadata.class_name,
+              schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+              }) : null
+            };
+          }
+        } else {
+          // Solo Attendance (Others)
           return {
             messageParts: [
-              { text: 'Getting stronger together! ', bold: false, clickable: false },
-              { text: `${username} `, bold: true, clickable: true },
-              { text: 'just checked in for ', bold: false, clickable: false },
+              { text: `${username} took a `, bold: false, clickable: false },
               { text: `${classMetadata.class_name} `, bold: true, clickable: true },
-              { text: 'at ', bold: false, clickable: false },
-              { text: `${activity.studios.name} `, bold: true, clickable: true },
-              { text: 'with ', bold: false, clickable: false },
-              { text: `${partnerNames}`, bold: true, clickable: true },
+              { text: 'class at ', bold: false, clickable: false },
+              { text: `${activity.studios.name}`, bold: true, clickable: true },
+              { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
               { text: '.', bold: false, clickable: false }
             ],
             type: classMetadata.class_name,
@@ -91,23 +150,6 @@ async function formatActivityMessage(activity: ActivityFeedItem): Promise<Format
               minute: '2-digit'
             }) : null
           };
-        } else {
-        return {
-          messageParts: [
-            { text: `${username} took a `, bold: false, clickable: false },
-            { text: `${classMetadata.class_name} `, bold: true, clickable: true },
-            { text: 'class at ', bold: false, clickable: false },
-            { text: `${activity.studios.name}`, bold: true, clickable: true },
-            { text: classMetadata.instructor_name ? ` with ${classMetadata.instructor_name}` : '', bold: true, clickable: true }
-          ],
-          type: classMetadata.class_name,
-          schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
-            month: 'long',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit'
-          }) : null
-        };
         }
       }
       
@@ -122,26 +164,47 @@ async function formatActivityMessage(activity: ActivityFeedItem): Promise<Format
           
           const partnerNames = partnerUsers?.map(user => 
             user.full_name || user.username || 'Someone'
-          ).join(', ') || 'Partners';
+          ) || [];
           
-          return {
-            messageParts: [
-              { text: 'Getting stronger together! ', bold: false, clickable: false },
-              { text: `${username} `, bold: true, clickable: true },
-              { text: 'just checked in for ', bold: false, clickable: false },
-              { text: `${activityName} `, bold: true, clickable: true },
-              { text: 'with ', bold: false, clickable: false },
-              { text: `${partnerNames}`, bold: true, clickable: true },
-              { text: '.', bold: false, clickable: false }
-            ],
-            type: activityName,
-            schedule: null
-          };
+          if (partnerNames.length === 1) {
+            return {
+              messageParts: [
+                { text: `${username} and ${partnerNames[0]} did `, bold: false, clickable: false },
+                { text: `${activityName}`, bold: true, clickable: true },
+                { text: '.', bold: false, clickable: false }
+              ],
+              type: activityName,
+              schedule: null
+            };
+          } else if (partnerNames.length === 2) {
+            return {
+              messageParts: [
+                { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} did `, bold: false, clickable: false },
+                { text: `${activityName}`, bold: true, clickable: true },
+                { text: '.', bold: false, clickable: false }
+              ],
+              type: activityName,
+              schedule: null
+            };
+          } else {
+            const firstTwo = partnerNames.slice(0, 2).join(', ');
+            const remaining = partnerNames.length - 2;
+            return {
+              messageParts: [
+                { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did `, bold: false, clickable: false },
+                { text: `${activityName}`, bold: true, clickable: true },
+                { text: '.', bold: false, clickable: false }
+              ],
+              type: activityName,
+              schedule: null
+            };
+          }
         } else {
           return {
             messageParts: [
-              { text: `${username} checked in for `, bold: false, clickable: false },
-              { text: `${activityName}`, bold: true, clickable: true }
+              { text: `${username} did `, bold: false, clickable: false },
+              { text: `${activityName}`, bold: true, clickable: true },
+              { text: '.', bold: false, clickable: false }
             ],
             type: activityName,
             schedule: null
@@ -225,32 +288,57 @@ async function formatActivityMessage(activity: ActivityFeedItem): Promise<Format
         
         const partnerNames = partnerUsers?.map(user => 
           user.full_name || user.username || 'Someone'
-        ).join(', ') || 'Partners';
+        ) || [];
         
+        if (partnerNames.length === 1) {
+          return {
+            messageParts: [
+              { text: `${username} and ${partnerNames[0]} did `, bold: false, clickable: false },
+              { text: `${postMetadata.title || 'a workout'} `, bold: true, clickable: true },
+              { text: 'at ', bold: false, clickable: false },
+              { text: `${activity.studios?.name || 'the studio'}`, bold: true, clickable: true },
+              { text: '.', bold: false, clickable: false }
+            ],
+            type: postMetadata.title || null,
+            schedule: null
+          };
+        } else if (partnerNames.length === 2) {
+          return {
+            messageParts: [
+              { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} did `, bold: false, clickable: false },
+              { text: `${postMetadata.title || 'a workout'} `, bold: true, clickable: true },
+              { text: 'at ', bold: false, clickable: false },
+              { text: `${activity.studios?.name || 'the studio'}`, bold: true, clickable: true },
+              { text: '.', bold: false, clickable: false }
+            ],
+            type: postMetadata.title || null,
+            schedule: null
+          };
+        } else {
+          const firstTwo = partnerNames.slice(0, 2).join(', ');
+          const remaining = partnerNames.length - 2;
+          return {
+            messageParts: [
+              { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did `, bold: false, clickable: false },
+              { text: `${postMetadata.title || 'a workout'} `, bold: true, clickable: true },
+              { text: 'at ', bold: false, clickable: false },
+              { text: `${activity.studios?.name || 'the studio'}`, bold: true, clickable: true },
+              { text: '.', bold: false, clickable: false }
+            ],
+            type: postMetadata.title || null,
+            schedule: null
+          };
+        }
+      } else {
         return {
           messageParts: [
-            { text: 'Getting stronger together! ', bold: false, clickable: false },
-            { text: `${username} `, bold: true, clickable: true },
-            { text: 'just checked in for ', bold: false, clickable: false },
-            { text: `${postMetadata.title || 'a workout'} `, bold: true, clickable: true },
-            { text: 'at ', bold: false, clickable: false },
-            { text: `${activity.studios?.name || 'the studio'} `, bold: true, clickable: true },
-            { text: 'with ', bold: false, clickable: false },
-            { text: `${partnerNames}`, bold: true, clickable: true },
-            { text: '.', bold: false, clickable: false }
+            { text: `${username} posted: `, bold: false, clickable: false },
+            { text: postMetadata.message || postMetadata.title || 'an update', bold: true, clickable: false }
           ],
-          type: postMetadata.title || null,
+          type: null,
           schedule: null
         };
-      } else {
-      return {
-        messageParts: [
-          { text: postMetadata.message || postMetadata.title || 'Posted an update', bold: false, clickable: false }
-        ],
-        type: null,
-        schedule: null
-      };
-  }
+      }
   
     default:
       const fallbackMetadata = metadata as PostActivityDetails;
