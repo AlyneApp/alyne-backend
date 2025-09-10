@@ -511,7 +511,7 @@ export async function GET(
       `)
       .eq('user_id', targetUserId)
       .order('created_at', { ascending: false })
-      .limit(20);
+      .limit(4);
 
     if (activitiesError) {
       return NextResponse.json(

@@ -4,7 +4,7 @@ import { resolve } from 'path';
 // Load environment variables from .env file
 config({ path: resolve(__dirname, '../.env') });
 
-import { supabase } from '../lib/supabase';
+import { supabaseAdmin } from '../lib/supabase';
 import { GirlsWhoMeetScraper, ScrapedEvent } from '../lib/girlswhomeetScraper';
 
 interface DatabaseEvent {
@@ -60,7 +60,12 @@ async function scrapeAndUpdateEvents() {
     
     // Step 2: Get existing events from database
     console.log('🗄️ Fetching existing events from database...');
-    const { data: existingEvents, error: fetchError } = await supabase
+    
+    if (!supabaseAdmin) {
+      throw new Error('Supabase admin client not initialized');
+    }
+    
+    const { data: existingEvents, error: fetchError } = await supabaseAdmin
       .from('events')
       .select('source_id, name, date, location')
       .eq('source', 'girlswhomeet');
@@ -107,7 +112,7 @@ async function scrapeAndUpdateEvents() {
         is_featured: false
       }));
       
-      const { data: insertedEvents, error: insertError } = await supabase
+      const { data: insertedEvents, error: insertError } = await supabaseAdmin
         .from('events')
         .insert(eventsToInsert)
         .select();
@@ -124,7 +129,7 @@ async function scrapeAndUpdateEvents() {
       console.log('🔄 Updating existing events...');
       
       for (const event of updatedEvents) {
-        const { error: updateError } = await supabase
+        const { error: updateError } = await supabaseAdmin
           .from('events')
           .update({
             name: event.name,
@@ -161,7 +166,7 @@ async function scrapeAndUpdateEvents() {
     const oldEventIds = Array.from(existingEventIds).filter(id => !scrapedEventIds.has(id));
     
     if (oldEventIds.length > 0) {
-      const { error: deactivateError } = await supabase
+      const { error: deactivateError } = await supabaseAdmin
         .from('events')
         .update({ is_active: false })
         .in('source_id', oldEventIds);

@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to create group conversation' }, { status: 500 });
       }
 
-      // Manually insert participants to ensure conversation_participants table is populated
-      // First check if the current user is already a participant
+      // Manually insert ALL participants to ensure conversation_participants table is populated
+      // First check what participants already exist
       const { data: existingParticipants, error: checkError } = await supabase
         .from('conversation_participants')
         .select('user_id')
@@ -62,30 +62,31 @@ export async function POST(request: NextRequest) {
       console.log('Selected participant IDs:', participantIds);
 
       const existingUserIds = existingParticipants?.map(p => p.user_id) || [];
-      const currentUserIsParticipant = existingUserIds.includes(user.id);
+      
+      // Insert all participants that don't already exist
+      const participantsToInsert = participantIds
+        .filter(userId => !existingUserIds.includes(userId))
+        .map(userId => ({
+          conversation_id: conversationId,
+          user_id: userId
+        }));
 
-      console.log('Current user is participant:', currentUserIsParticipant);
-      console.log('Existing user IDs:', existingUserIds);
-
-      if (!currentUserIsParticipant) {
-        // Only insert the current user if they're not already a participant
+      if (participantsToInsert.length > 0) {
+        console.log('Inserting participants:', participantsToInsert);
         const { error: insertError } = await supabase
           .from('conversation_participants')
-          .insert([{
-            conversation_id: conversationId,
-            user_id: user.id
-          }]);
+          .insert(participantsToInsert);
 
         if (insertError) {
-          console.error('Error inserting current user as participant:', insertError);
+          console.error('Error inserting participants:', insertError);
         } else {
-          console.log('Added current user as participant for conversation:', conversationId);
+          console.log('Successfully inserted participants for conversation:', conversationId);
         }
       } else {
-        console.log('Current user is already a participant for conversation:', conversationId);
+        console.log('All participants already exist for conversation:', conversationId);
       }
 
-      // Check again after our insertion
+      // Check final participants after insertion
       const { data: finalParticipants, error: finalCheckError } = await supabase
         .from('conversation_participants')
         .select('user_id')
@@ -96,8 +97,6 @@ export async function POST(request: NextRequest) {
       } else {
         console.log('Final participants after insertion:', finalParticipants);
       }
-
-      console.log('Manually inserted participants for conversation:', conversationId);
 
       // Get the conversation details
       const { data: conversation, error: fetchError } = await supabase

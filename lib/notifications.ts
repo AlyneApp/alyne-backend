@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { supabaseAdmin } from './supabase';
 
 // Notification type definitions
 export type NotificationType = 
@@ -7,6 +8,8 @@ export type NotificationType =
   | 'follow_approved'
   | 'collaboration_request'
   | 'collaboration_approved'
+  | 'payment_confirmation'
+  | 'payment_confirmed'
   | 'like'
   | 'comment'
   | 'studio_update'
@@ -23,6 +26,7 @@ export interface BaseNotification {
   related_id: string | null;
   extra_data: Record<string, unknown>;
   is_read: boolean;
+  status: 'pending' | 'accepted' | 'declined' | 'completed';
   created_at: string;
 }
 
@@ -91,7 +95,8 @@ export const followNotificationHandler: NotificationHandler = {
       to_user_id: toUserId,
       related_id: relatedId,
       extra_data: extraData || {},
-      is_read: false
+      is_read: false,
+      status: 'pending'
     });
   },
   
@@ -145,7 +150,8 @@ export const followApprovedNotificationHandler: NotificationHandler = {
       to_user_id: toUserId,
       related_id: relatedId,
       extra_data: extraData || {},
-      is_read: false
+      is_read: false,
+      status: 'completed'
     });
   },
   
@@ -190,7 +196,8 @@ export const collaborationNotificationHandler: NotificationHandler = {
       to_user_id: toUserId,
       related_id: relatedId,
       extra_data: extraData || {},
-      is_read: false
+      is_read: false,
+      status: 'pending'
     });
   },
   
@@ -244,7 +251,8 @@ export const collaborationApprovedNotificationHandler: NotificationHandler = {
       to_user_id: toUserId,
       related_id: relatedId,
       extra_data: extraData || {},
-      is_read: false
+      is_read: false,
+      status: 'completed'
     });
   },
   
@@ -277,7 +285,8 @@ export const likeNotificationHandler: NotificationHandler = {
       to_user_id: toUserId,
       related_id: relatedId,
       extra_data: extraData || {},
-      is_read: false
+      is_read: false,
+      status: 'completed'
     });
   },
   
@@ -310,13 +319,82 @@ export const commentNotificationHandler: NotificationHandler = {
       to_user_id: toUserId,
       related_id: relatedId,
       extra_data: extraData || {},
-      is_read: false
+      is_read: false,
+      status: 'completed'
     });
   },
   
   formatMessage: ({ fromUser }) => {
     const name = fromUser?.full_name || fromUser?.username || 'Someone';
     return `${name} commented on your post`;
+  }
+};
+
+// Payment confirmation notification handler
+export const paymentConfirmationNotificationHandler: NotificationHandler = {
+  type: 'payment_confirmation',
+  
+  create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
+    if (!fromUserId) throw new Error('fromUserId is required for payment notifications');
+    
+    const { data: fromUser } = await supabase
+      .from('users')
+      .select('username, full_name')
+      .eq('id', fromUserId)
+      .single();
+    
+    const requesterName = fromUser?.full_name || fromUser?.username || 'Someone';
+    const message = `${requesterName} wants to claim your ${extraData?.class_name || 'booking'}. Confirm payment?`;
+    
+    await supabase.from('notifications').insert({
+      type: 'payment_confirmation',
+      message,
+      from_user_id: fromUserId,
+      to_user_id: toUserId,
+      related_id: relatedId,
+      extra_data: extraData || {},
+      is_read: false,
+      status: 'pending'
+    });
+  },
+  
+  formatMessage: ({ fromUser, extraData }) => {
+    const name = fromUser?.full_name || fromUser?.username || 'Someone';
+    return `${name} wants to claim your ${extraData?.class_name || 'booking'}. Confirm payment?`;
+  }
+};
+
+// Payment confirmed notification handler
+export const paymentConfirmedNotificationHandler: NotificationHandler = {
+  type: 'payment_confirmed',
+  
+  create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
+    if (!fromUserId) throw new Error('fromUserId is required for payment notifications');
+    
+    const { data: fromUser } = await supabase
+      .from('users')
+      .select('username, full_name')
+      .eq('id', fromUserId)
+      .single();
+    
+    const requesterName = fromUser?.full_name || fromUser?.username || 'Someone';
+    const message = `${requesterName} confirmed your payment for ${extraData?.class_name || 'booking'}.`;
+    
+    await supabase.from('notifications').insert({
+      type: 'payment_confirmed',
+      message,
+      from_user_id: fromUserId,
+      to_user_id: toUserId,
+      related_id: relatedId,
+      extra_data: extraData || {},
+      is_read: false,
+      status: 'completed'
+    });
+  },
+  
+  formatMessage: ({ fromUser, extraData }) => {
+    const name = fromUser?.full_name || fromUser?.username || 'Someone';
+    return `${name} confirmed your payment for ${extraData?.class_name || 'booking'}.`;
   }
 };
 
@@ -327,6 +405,8 @@ export const notificationHandlers: Record<NotificationType, NotificationHandler>
   follow_approved: followApprovedNotificationHandler,
   collaboration_request: collaborationNotificationHandler,
   collaboration_approved: collaborationApprovedNotificationHandler,
+  payment_confirmation: paymentConfirmationNotificationHandler,
+  payment_confirmed: paymentConfirmedNotificationHandler,
   like: likeNotificationHandler,
   comment: commentNotificationHandler,
   studio_update: {
@@ -403,5 +483,31 @@ export class NotificationService {
       throw new Error(`No handler found for notification type: ${type}`);
     }
     return handler;
+  }
+  
+  static async updateNotificationStatus(
+    notificationId: string, 
+    status: 'pending' | 'accepted' | 'declined' | 'completed',
+    updatedMessage?: string
+  ): Promise<void> {
+    const updateData: any = { 
+      status
+    };
+    if (updatedMessage) {
+      updateData.message = updatedMessage;
+    }
+    
+    if (!supabaseAdmin) {
+      throw new Error('Supabase admin client not initialized');
+    }
+    
+    const { error } = await supabaseAdmin
+      .from('notifications')
+      .update(updateData)
+      .eq('id', notificationId);
+    
+    if (error) {
+      throw new Error(`Failed to update notification status: ${error.message}`);
+    }
   }
 } 

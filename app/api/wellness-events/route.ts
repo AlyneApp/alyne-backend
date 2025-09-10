@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
       current_attendees: event.current_attendees,
       organizer: event.organizer,
       organizer_website: event.organizer_website,
+      organizer_avatar_url: event.organizer_avatar_url,
       image_url: event.image_url,
       external_url: event.external_url,
       source: event.source,

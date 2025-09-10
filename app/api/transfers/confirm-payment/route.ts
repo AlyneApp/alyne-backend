@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
-    const { transferId, transferrerId } = await request.json();
+    const { transferId, transferrerId, notificationId } = await request.json();
 
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
@@ -14,20 +14,26 @@ export async function POST(request: NextRequest) {
       .from('booking_transfers')
       .select('*')
       .eq('id', transferId)
-      .eq('transferrer_id', transferrerId)
       .eq('status', 'payment_pending')
       .single();
 
     if (fetchError || !transfer) {
+      console.error('Transfer fetch error:', fetchError);
       return NextResponse.json({ error: 'Transfer not found or not in payment pending status' }, { status: 404 });
     }
 
-    // Update the transfer to claimed status
+    // Verify that the transferrerId matches (if provided)
+    if (transferrerId && transfer.transferrer_id !== transferrerId) {
+      console.error('Transferrer ID mismatch:', { provided: transferrerId, actual: transfer.transferrer_id });
+      return NextResponse.json({ error: 'Unauthorized: Transferrer ID does not match' }, { status: 403 });
+    }
+
+    // Update the transfer to completed status
     const { data: updatedTransfer, error: updateError } = await supabaseAdmin
       .from('booking_transfers')
       .update({
-        status: 'claimed',
-        claimed_at: new Date().toISOString(),
+        status: 'completed',
+        completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', transferId)
@@ -53,7 +59,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to confirm payment' }, { status: 500 });
     }
 
-    const { data: transferrerData, error: transferrerError } = await supabaseAdmin
+    // Mark the payment confirmation notification as accepted
+    if (notificationId) {
+      const { error: notificationUpdateError } = await supabaseAdmin
+        .from('notifications')
+        .update({
+          status: 'accepted',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', notificationId)
+        .eq('to_user_id', transferrerId);
+
+      if (notificationUpdateError) {
+        console.error('Error updating notification status:', notificationUpdateError);
+      }
+    }
+
+    const { error: transferrerError } = await supabaseAdmin
       .from('users')
       .select('full_name, username')
       .eq('id', transfer.transferrer_id)
@@ -63,31 +85,49 @@ export async function POST(request: NextRequest) {
       console.error('Error fetching transferrer data:', transferrerError);
     }
 
-    const transferrerName = transferrerData?.full_name || transferrerData?.username || 'The poster';
+    // const transferrerName = transferrerData?.full_name || transferrerData?.username || 'The poster';
     
-    // Create a notification for the claimer
+    // Create a notification for the claimer confirming the transfer
     const { error: notificationError } = await supabaseAdmin
       .from('notifications')
       .insert({
         from_user_id: transfer.transferrer_id,
         to_user_id: transfer.claimer_id,
         type: 'payment_confirmed',
-        message: `${transferrerName} confirmed your payment for ${transfer.class_name}.`,
+        message: `Payment confirmed. ${transfer.class_name} with ${transfer.instructor_name} on ${transfer.date} at ${transfer.time} at ${transfer.studio_name} is now officially yours.`,
         related_id: transferId,
         extra_data: {
           transfer_id: transferId,
           class_name: transfer.class_name,
+          instructor_name: transfer.instructor_name,
           studio_name: transfer.studio_name,
           date: transfer.date,
           time: transfer.time,
           price: transfer.price
         },
+        status: 'completed',
         created_at: new Date().toISOString()
       });
 
     if (notificationError) {
       console.error('Error creating notification:', notificationError);
       // Don't fail the request if notification fails
+    }
+
+    // Transfer the original booking to the claimer
+    const { error: bookingTransferError } = await supabaseAdmin
+      .from('bookings')
+      .update({
+        user_id: transfer.claimer_id,
+        status: 'confirmed', // Reset to confirmed status for the new owner
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', transfer.original_booking_id);
+
+    if (bookingTransferError) {
+      console.error('Error transferring booking:', bookingTransferError);
+      // Don't fail the entire request if booking transfer fails
+      // The transfer record is already marked as completed
     }
 
     return NextResponse.json({

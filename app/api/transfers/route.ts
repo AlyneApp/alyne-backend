@@ -9,11 +9,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
     }
 
+    // For claimed bookings, we might not have a valid original_booking_id
+    // Check if the booking exists in the bookings table
+    const { data: existingBooking } = await supabaseAdmin
+      .from('bookings')
+      .select('id')
+      .eq('id', bookingData.id)
+      .single();
+
+    // If the booking doesn't exist, it might be a claimed booking
+    // In this case, we'll set original_booking_id to null and handle it as a standalone transfer
+    const originalBookingId = existingBooking ? bookingData.id : null;
+
     // Create a new transfer record
     const { data: transfer, error } = await supabaseAdmin
       .from('booking_transfers')
       .insert({
-        original_booking_id: bookingData.id,
+        original_booking_id: originalBookingId,
         transferrer_id: userId,
         studio_name: bookingData.studioName,
         class_name: bookingData.className,

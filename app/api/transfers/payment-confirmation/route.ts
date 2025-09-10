@@ -51,30 +51,58 @@ export async function POST(request: NextRequest) {
 
     const claimerName = claimerData?.full_name || claimerData?.username || 'Someone';
     
-    // Create a notification for the transferrer
-    const { error: notificationError } = await supabaseAdmin
+    // Create first notification: informational (no action buttons)
+    const { error: infoNotificationError } = await supabaseAdmin
       .from('notifications')
       .insert({
         from_user_id: claimerId,
         to_user_id: transfer.transferrer_id,
-        type: 'payment_confirmation',
-        message: `${claimerName} wants to claim your ${transfer.class_name} booking. Confirm payment?`,
+        type: 'booking_claimed',
+        message: `${claimerName} claimed your booking for ${transfer.class_name} with ${transfer.instructor_name} on ${transfer.date} at ${transfer.time} at ${transfer.studio_name}.`,
         related_id: transferId,
         extra_data: {
           transfer_id: transferId,
           claimer_id: claimerId,
           class_name: transfer.class_name,
+          instructor_name: transfer.instructor_name,
           studio_name: transfer.studio_name,
           date: transfer.date,
           time: transfer.time,
           price: transfer.price
         },
+        status: 'completed', // No action needed for this notification
         created_at: new Date().toISOString()
       });
 
-    if (notificationError) {
-      console.error('Error creating notification:', notificationError);
-      // Don't fail the request if notification fails
+    if (infoNotificationError) {
+      console.error('Error creating info notification:', infoNotificationError);
+    }
+
+    // Create second notification: payment confirmation request (with action buttons)
+    const { error: paymentNotificationError } = await supabaseAdmin
+      .from('notifications')
+      .insert({
+        from_user_id: claimerId,
+        to_user_id: transfer.transferrer_id,
+        type: 'payment_confirmation',
+        message: `Has ${claimerName} sent payment for your booking of ${transfer.class_name} on ${transfer.date} at ${transfer.time} at ${transfer.studio_name}? Confirm via Venmo or other payment method.`,
+        related_id: transferId,
+        extra_data: {
+          transfer_id: transferId,
+          claimer_id: claimerId,
+          class_name: transfer.class_name,
+          instructor_name: transfer.instructor_name,
+          studio_name: transfer.studio_name,
+          date: transfer.date,
+          time: transfer.time,
+          price: transfer.price
+        },
+        status: 'pending', // This one needs action
+        created_at: new Date().toISOString()
+      });
+
+    if (paymentNotificationError) {
+      console.error('Error creating payment notification:', paymentNotificationError);
     }
 
     return NextResponse.json({

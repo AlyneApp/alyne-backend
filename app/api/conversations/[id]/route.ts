@@ -85,7 +85,7 @@ export async function GET(
       created_by: conversation.created_by,
       created_at: conversation.created_at,
       updated_at: conversation.updated_at,
-      conversation_participants: participants?.map(p => p.users).filter(Boolean) || []
+      conversation_participants: participants?.map(p => ({ users: p.users })).filter(Boolean) || []
     };
 
     return NextResponse.json({

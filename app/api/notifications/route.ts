@@ -9,6 +9,7 @@ interface FrontendNotification {
   message: string;
   time: string;
   isRead: boolean;
+  status: 'pending' | 'accepted' | 'declined' | 'completed';
   fromUser: {
     id: string;
     username: string;
@@ -119,6 +120,7 @@ async function transformNotification(notification: BaseNotification, currentUser
     message: notification.message,
     time: timeAgo,
     isRead: notification.is_read,
+    status: notification.status,
     fromUser,
     relatedId: notification.related_id,
     extraData: notification.extra_data,
@@ -148,13 +150,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const countOnly = searchParams.get('count');
 
-    // If countOnly is true, just return the unread count
+    // If countOnly is true, just return the unread count (excluding declined notifications)
     if (countOnly === 'true') {
       const { count, error: countError } = await supabaseAdmin
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('to_user_id', user.id)
-        .eq('is_read', false);
+        .eq('is_read', false)
+        .neq('status', 'declined'); // Exclude declined notifications from count
 
       if (countError) {
         console.error('Error getting notification count:', countError);
@@ -163,15 +166,16 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        count: count || 0
+        unreadCount: count || 0
       });
     }
 
-    // Otherwise, fetch all notifications
+    // Otherwise, fetch all notifications (excluding declined ones)
     const { data: notifications, error } = await supabaseAdmin
       .from('notifications')
       .select('*')
       .eq('to_user_id', user.id)
+      .neq('status', 'declined') // Exclude declined notifications
       .order('created_at', { ascending: false })
       .limit(50);
 
