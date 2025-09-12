@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
         { p_name: groupName || 'New Group Chat', p_created_by: user.id, p_participant_ids: participantIds }
       );
 
-      console.log('Group conversation creation result:', { conversationId, conversationError });
 
       if (conversationError) {
         console.error('Error creating group conversation:', conversationError);
@@ -57,9 +56,6 @@ export async function POST(request: NextRequest) {
         console.error('Error checking existing participants:', checkError);
       }
 
-      console.log('Existing participants after database function:', existingParticipants);
-      console.log('Current user ID:', user.id);
-      console.log('Selected participant IDs:', participantIds);
 
       const existingUserIds = existingParticipants?.map(p => p.user_id) || [];
       
@@ -72,30 +68,23 @@ export async function POST(request: NextRequest) {
         }));
 
       if (participantsToInsert.length > 0) {
-        console.log('Inserting participants:', participantsToInsert);
         const { error: insertError } = await supabase
           .from('conversation_participants')
           .insert(participantsToInsert);
 
         if (insertError) {
           console.error('Error inserting participants:', insertError);
-        } else {
-          console.log('Successfully inserted participants for conversation:', conversationId);
         }
-      } else {
-        console.log('All participants already exist for conversation:', conversationId);
       }
 
       // Check final participants after insertion
-      const { data: finalParticipants, error: finalCheckError } = await supabase
+      const { error: finalCheckError } = await supabase
         .from('conversation_participants')
         .select('user_id')
         .eq('conversation_id', conversationId);
 
       if (finalCheckError) {
         console.error('Error checking final participants:', finalCheckError);
-      } else {
-        console.log('Final participants after insertion:', finalParticipants);
       }
 
       // Get the conversation details
@@ -121,7 +110,6 @@ export async function POST(request: NextRequest) {
         .eq('id', conversationId)
         .single();
 
-      console.log('Fetched group conversation:', { conversation, fetchError });
 
       if (fetchError) {
         console.error('Error fetching group conversation:', fetchError);
@@ -177,18 +165,72 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Other user not found' }, { status: 404 });
       }
 
-      // Get or create direct conversation using our database function
-      const { data: conversationId, error: conversationError } = await supabase.rpc(
-        'get_or_create_direct_conversation',
-        { p_user1_id: user.id, p_user2_id: targetOtherUserId }
-      );
+      // Check if conversation already exists
+      const { data: existingConversation } = await supabase
+        .from('conversations')
+        .select('id, request_status')
+        .eq('conversation_type', 'direct')
+        .eq('created_by', user.id)
+        .single();
 
-      console.log('Direct conversation creation result:', { conversationId, conversationError });
+      let conversationId;
+      let requestStatus = 'accepted'; // Default for group conversations (always accepted)
 
-      if (conversationError) {
-        console.error('Error creating conversation:', conversationError);
-        return NextResponse.json({ error: 'Failed to create conversation' }, { status: 500 });
+      if (existingConversation) {
+        conversationId = existingConversation.id;
+        // If existing conversation has 'none' status, determine proper status
+        if (existingConversation.request_status === 'none') {
+          // Check if the other user follows the current user
+          const { data: followData } = await supabase
+            .from('friends')
+            .select('id')
+            .eq('user_id', targetOtherUserId)
+            .eq('friend_id', user.id)
+            .eq('approved', true)
+            .single();
+          
+          requestStatus = followData ? 'accepted' : 'pending';
+          
+          // Update the conversation with proper status
+          await supabase
+            .from('conversations')
+            .update({ request_status: requestStatus })
+            .eq('id', conversationId);
+        } else {
+          requestStatus = existingConversation.request_status;
+        }
+      } else {
+        // Check if the other user follows the current user
+        const { data: followData } = await supabase
+          .from('friends')
+          .select('id')
+          .eq('user_id', targetOtherUserId)
+          .eq('friend_id', user.id)
+          .eq('approved', true)
+          .single();
+
+        // Set request_status based on follow relationship
+        requestStatus = followData ? 'accepted' : 'pending';
+
+        // Create new conversation
+        const { data: newConversation, error: conversationError } = await supabase
+          .from('conversations')
+          .insert({
+            conversation_type: 'direct',
+            created_by: user.id,
+            request_status: requestStatus
+          })
+          .select('id')
+          .single();
+
+        if (conversationError) {
+          console.error('Error creating conversation:', conversationError);
+          return NextResponse.json({ error: 'Failed to create conversation' }, { status: 500 });
+        }
+
+        conversationId = newConversation.id;
       }
+
 
       // Manually insert participants to ensure conversation_participants table is populated
       const participantInserts = [
@@ -205,7 +247,6 @@ export async function POST(request: NextRequest) {
         // Don't fail here, just log the error
       }
 
-      console.log('Manually inserted participants for direct conversation:', conversationId);
 
       // Get the conversation details with user info
       const { data: conversation, error: fetchError } = await supabase
@@ -290,13 +331,9 @@ export async function GET(request: NextRequest) {
     const userConversationIdSet = new Set(userConversationIds.data?.map(cp => cp.conversation_id) || []);
     const userConversations = conversations?.filter(conv => userConversationIdSet.has(conv.id)) || [];
 
-    console.log('All conversations:', conversations);
-    console.log('User conversation IDs:', userConversationIds.data);
-    console.log('Filtered user conversations:', userConversations);
 
     // Transform the data to make it easier to work with
     const transformedConversations = userConversations.map(conv => {
-      console.log('Processing conversation:', conv);
       
       if (conv.conversation_type === 'direct') {
         // For direct conversations, we'll need to fetch the other user separately
@@ -357,11 +394,27 @@ export async function GET(request: NextRequest) {
           // For direct conversations, find the other user
           const otherUser = participants?.find(p => p.user_id !== user.id)?.users;
           
-          return {
-            ...conv,
-            otherUser: otherUser || null,
-            lastMessage: lastMessage || null
-          };
+          if (!otherUser) {
+            return null; // Skip if no other user found
+          }
+
+          // Check if this conversation has been accepted
+          const { data: conversationData } = await supabase
+            .from('conversations')
+            .select('request_status')
+            .eq('id', conv.id)
+            .single();
+
+          // Only include in main conversations if request_status is 'accepted'
+          if (conversationData?.request_status === 'accepted') {
+            return {
+              ...conv,
+              otherUser: otherUser,
+              lastMessage: lastMessage || null
+            };
+          } else {
+            return null; // This is a request or declined, not a main conversation
+          }
         } else {
           // For group conversations
           return {
@@ -373,11 +426,13 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    console.log('Final enriched conversations:', enrichedConversations);
+    // Filter out null values (conversations that are requests)
+    const filteredConversations = enrichedConversations.filter(conv => conv !== null);
+
 
     return NextResponse.json({
       success: true,
-      data: enrichedConversations
+      data: filteredConversations
     });
 
   } catch (error) {

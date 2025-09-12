@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // First check if conversation exists
     const { data: conversation, error: conversationError } = await supabase
       .from('conversations')
-      .select('id, conversation_type')
+      .select('id, conversation_type, request_status')
       .eq('id', conversationId)
       .single();
 
@@ -40,6 +40,48 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Conversation found:', conversation);
+
+    // For direct conversations, check if this should be a pending request
+    if (conversation.conversation_type === 'direct' && (conversation.request_status === 'none' || !conversation.request_status)) {
+      // Get the other participant
+      const { data: participants } = await supabase
+        .from('conversation_participants')
+        .select('user_id')
+        .eq('conversation_id', conversationId);
+
+      if (participants && participants.length === 2) {
+        const otherUserId = participants.find(p => p.user_id !== user.id)?.user_id;
+        
+        if (otherUserId) {
+          // Check if the other user follows the current user
+          const { data: followData } = await supabase
+            .from('friends')
+            .select('id')
+            .eq('user_id', otherUserId)
+            .eq('friend_id', user.id)
+            .eq('approved', true)
+            .single();
+
+          // If the other user doesn't follow the current user, set as pending request
+          if (!followData) {
+            await supabase
+              .from('conversations')
+              .update({ request_status: 'pending' })
+              .eq('id', conversationId);
+            
+            console.log('Set conversation as pending request');
+          } else {
+            // If they follow each other, set as accepted
+            await supabase
+              .from('conversations')
+              .update({ request_status: 'accepted' })
+              .eq('id', conversationId);
+            
+            console.log('Set conversation as accepted');
+          }
+        }
+      }
+    }
 
     // Check if the current user is a participant
     const { data: participant, error: participantError } = await supabase
