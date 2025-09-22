@@ -58,7 +58,8 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
   
   switch (activity.type) {
     case 'class_checkin':
-      if (activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string') {
+      if (activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string' && 
+          !['Custom', 'Custom Class', 'Activity'].includes(metadata.class_name)) {
         const classMetadata = metadata as ClassActivityDetails;
         
         if (activity.collaboration_partners && activity.collaboration_partners.length > 0) {
@@ -264,9 +265,9 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
                 messageParts: [
                   { text: 'You and ', bold: false, clickable: false },
                   { text: `${partnerNames[0]} `, bold: true, clickable: true },
-                  { text: 'did ', bold: false, clickable: false },
+                  { text: 'did a ', bold: false, clickable: false },
                   { text: `${activityName}`, bold: true, clickable: true },
-                  { text: '.', bold: false, clickable: false }
+                  { text: ' workout.', bold: false, clickable: false }
                 ],
                 type: activityName,
                 schedule: null
@@ -274,9 +275,9 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
             } else {
               return {
                 messageParts: [
-                  { text: `${username} and ${partnerNames[0]} did `, bold: false, clickable: false },
+                  { text: `${username} and ${partnerNames[0]} did a `, bold: false, clickable: false },
                   { text: `${activityName}`, bold: true, clickable: true },
-                  { text: '.', bold: false, clickable: false }
+                  { text: ' workout.', bold: false, clickable: false }
                 ],
                 type: activityName,
                 schedule: null
@@ -286,10 +287,10 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
             if (isOwnActivity) {
               return {
                 messageParts: [
-                  { text: 'You, ', bold: false, clickable: false },
-                  { text: `${partnerNames[0]}, and ${partnerNames[1]} `, bold: true, clickable: true },
-                  { text: 'did ', bold: false, clickable: false },
-                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: 'You did a ', bold: false, clickable: false },
+                  { text: `${activityName} `, bold: true, clickable: true },
+                  { text: 'workout with ', bold: false, clickable: false },
+                  { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
                   { text: '.', bold: false, clickable: false }
                 ],
                 type: activityName,
@@ -298,9 +299,9 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
             } else {
               return {
                 messageParts: [
-                  { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} did `, bold: false, clickable: false },
+                  { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} did a `, bold: false, clickable: false },
                   { text: `${activityName}`, bold: true, clickable: true },
-                  { text: '.', bold: false, clickable: false }
+                  { text: ' workout.', bold: false, clickable: false }
                 ],
                 type: activityName,
                 schedule: null
@@ -312,10 +313,10 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
             if (isOwnActivity) {
               return {
                 messageParts: [
-                  { text: 'You, ', bold: false, clickable: false },
-                  { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} `, bold: true, clickable: true },
-                  { text: 'did ', bold: false, clickable: false },
-                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: 'You did a ', bold: false, clickable: false },
+                  { text: `${activityName} `, bold: true, clickable: true },
+                  { text: 'workout with ', bold: false, clickable: false },
+                  { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
                   { text: '.', bold: false, clickable: false }
                 ],
                 type: activityName,
@@ -324,9 +325,9 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
             } else {
               return {
                 messageParts: [
-                  { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did `, bold: false, clickable: false },
+                  { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did a `, bold: false, clickable: false },
                   { text: `${activityName}`, bold: true, clickable: true },
-                  { text: '.', bold: false, clickable: false }
+                  { text: ' workout.', bold: false, clickable: false }
                 ],
                 type: activityName,
                 schedule: null
@@ -337,9 +338,9 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
           if (isOwnActivity) {
             return {
               messageParts: [
-                { text: 'You did ', bold: false, clickable: false },
+                { text: 'You did a ', bold: false, clickable: false },
                 { text: `${activityName}`, bold: true, clickable: true },
-                { text: '.', bold: false, clickable: false }
+                { text: ' workout.', bold: false, clickable: false }
               ],
               type: activityName,
               schedule: null
@@ -347,9 +348,9 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
           } else {
             return {
               messageParts: [
-                { text: `${username} did `, bold: false, clickable: false },
+                { text: `${username} did a `, bold: false, clickable: false },
                 { text: `${activityName}`, bold: true, clickable: true },
-                { text: '.', bold: false, clickable: false }
+                { text: ' workout.', bold: false, clickable: false }
               ],
               type: activityName,
               schedule: null
@@ -541,7 +542,8 @@ export async function GET(
         commentCount: activity.comment_count || 0,
         activity_type: activity.type,
         collaborationPartners: activity.collaboration_partners || [],
-        image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } : undefined,
+        image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } : 
+               'photos' in extraData && Array.isArray(extraData.photos) && extraData.photos.length > 0 ? { uri: extraData.photos[0] } : undefined,
         routeData: 'route_data' in extraData ? extraData.route_data : undefined,
         distance: 'distance' in extraData ? extraData.distance : undefined,
         duration: 'duration' in extraData ? extraData.duration : undefined

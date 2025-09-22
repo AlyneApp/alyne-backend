@@ -142,6 +142,9 @@ export async function GET(request: NextRequest) {
         }
       });
 
+      // Include your own posts in the feed
+      friendIds.add(user.id);
+
       const friendIdsArray = Array.from(friendIds);
       
       if (friendIdsArray.length > 0) {

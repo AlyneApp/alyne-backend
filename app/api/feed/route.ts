@@ -52,13 +52,15 @@ interface FormattedActivity {
   buttonLabel?: string;
 }
 
-async function formatActivityMessage(activity: ActivityFeedItem): Promise<FormattedActivity> {
+async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?: string): Promise<FormattedActivity> {
   const username = activity.users?.full_name || activity.users?.username || 'Someone';
   const metadata = activity.extra_data || {};
+  const isOwnActivity = currentUserId && activity.user_id === currentUserId;
   
   switch (activity.type) {
     case 'class_checkin':
-      if (activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string') {
+      if (activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string' && 
+          !['Custom', 'Custom Class', 'Activity'].includes(metadata.class_name)) {
         const classMetadata = metadata as ClassActivityDetails;
         
         if (activity.collaboration_partners && activity.collaboration_partners.length > 0) {
@@ -72,29 +74,142 @@ async function formatActivityMessage(activity: ActivityFeedItem): Promise<Format
           ) || [];
           
           if (partnerNames.length === 1) {
-            // With Another User (Others Only)
-            return {
-              messageParts: [
-                { text: `${username} and ${partnerNames[0]} took a `, bold: false, clickable: false },
-                { text: `${classMetadata.class_name} `, bold: true, clickable: true },
-                { text: 'class at ', bold: false, clickable: false },
-                { text: `${activity.studios.name}`, bold: true, clickable: true },
-                { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
-                { text: '.', bold: false, clickable: false }
-              ],
-              type: classMetadata.class_name,
-              schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit'
-              }) : null
-            };
+            if (isOwnActivity) {
+              // With Another User (You + Others)
+              return {
+                messageParts: [
+                  { text: 'You and ', bold: false, clickable: false },
+                  { text: `${partnerNames[0]} `, bold: true, clickable: true },
+                  { text: 'took a ', bold: false, clickable: false },
+                  { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                  { text: 'class at ', bold: false, clickable: false },
+                  { text: `${activity.studios.name}`, bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: classMetadata.class_name,
+                schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit'
+                }) : null
+              };
+            } else {
+              // With Another User (Others Only)
+              return {
+                messageParts: [
+                  { text: `${username} and ${partnerNames[0]} took a `, bold: false, clickable: false },
+                  { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                  { text: 'class at ', bold: false, clickable: false },
+                  { text: `${activity.studios.name}`, bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: classMetadata.class_name,
+                schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit'
+                }) : null
+              };
+            }
           } else if (partnerNames.length === 2) {
-            // Group Class Attendance (Others Only) - 2 partners
+            if (isOwnActivity) {
+              // Group Class Attendance (You in Group) - 2 partners
+              return {
+                messageParts: [
+                  { text: 'You took ', bold: false, clickable: false },
+                  { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                  { text: 'at ', bold: false, clickable: false },
+                  { text: `${activity.studios.name} `, bold: true, clickable: true },
+                  { text: 'with ', bold: false, clickable: false },
+                  { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? `, taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: classMetadata.class_name,
+                schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit'
+                }) : null
+              };
+            } else {
+              // Group Class Attendance (Others Only) - 2 partners
+              return {
+                messageParts: [
+                  { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} took a `, bold: false, clickable: false },
+                  { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                  { text: 'class at ', bold: false, clickable: false },
+                  { text: `${activity.studios.name}`, bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: classMetadata.class_name,
+                schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit'
+                }) : null
+              };
+            }
+          } else {
+            if (isOwnActivity) {
+              // Group Class Attendance (You in Group) - 3+ partners
+              const firstTwo = partnerNames.slice(0, 2).join(', ');
+              const remaining = partnerNames.length - 2;
+              return {
+                messageParts: [
+                  { text: 'You took ', bold: false, clickable: false },
+                  { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                  { text: 'at ', bold: false, clickable: false },
+                  { text: `${activity.studios.name} `, bold: true, clickable: true },
+                  { text: 'with ', bold: false, clickable: false },
+                  { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? `, taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: classMetadata.class_name,
+                schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit'
+                }) : null
+              };
+            } else {
+              // Group Class Attendance (Others Only) - 3+ partners
+              const firstTwo = partnerNames.slice(0, 2).join(', ');
+              const remaining = partnerNames.length - 2;
+              return {
+                messageParts: [
+                  { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} took a `, bold: false, clickable: false },
+                  { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                  { text: 'class at ', bold: false, clickable: false },
+                  { text: `${activity.studios.name}`, bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: classMetadata.class_name,
+                schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit'
+                }) : null
+              };
+            }
+          }
+        } else {
+          if (isOwnActivity) {
+            // Solo Attendance (You)
             return {
               messageParts: [
-                { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} took a `, bold: false, clickable: false },
+                { text: 'You took a ', bold: false, clickable: false },
                 { text: `${classMetadata.class_name} `, bold: true, clickable: true },
                 { text: 'class at ', bold: false, clickable: false },
                 { text: `${activity.studios.name}`, bold: true, clickable: true },
@@ -110,12 +225,10 @@ async function formatActivityMessage(activity: ActivityFeedItem): Promise<Format
               }) : null
             };
           } else {
-            // Group Class Attendance (Others Only) - 3+ partners
-            const firstTwo = partnerNames.slice(0, 2).join(', ');
-            const remaining = partnerNames.length - 2;
+            // Solo Attendance (Others)
             return {
               messageParts: [
-                { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} took a `, bold: false, clickable: false },
+                { text: `${username} took a `, bold: false, clickable: false },
                 { text: `${classMetadata.class_name} `, bold: true, clickable: true },
                 { text: 'class at ', bold: false, clickable: false },
                 { text: `${activity.studios.name}`, bold: true, clickable: true },
@@ -131,25 +244,6 @@ async function formatActivityMessage(activity: ActivityFeedItem): Promise<Format
               }) : null
             };
           }
-        } else {
-          // Solo Attendance (Others)
-          return {
-            messageParts: [
-              { text: `${username} took a `, bold: false, clickable: false },
-              { text: `${classMetadata.class_name} `, bold: true, clickable: true },
-              { text: 'class at ', bold: false, clickable: false },
-              { text: `${activity.studios.name}`, bold: true, clickable: true },
-              { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
-              { text: '.', bold: false, clickable: false }
-            ],
-            type: classMetadata.class_name,
-            schedule: classMetadata.class_schedule ? new Date(classMetadata.class_schedule).toLocaleDateString('en-US', {
-              month: 'long',
-              day: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit'
-            }) : null
-          };
         }
       }
       
@@ -167,48 +261,112 @@ async function formatActivityMessage(activity: ActivityFeedItem): Promise<Format
           ) || [];
           
           if (partnerNames.length === 1) {
-            return {
-              messageParts: [
-                { text: `${username} and ${partnerNames[0]} did `, bold: false, clickable: false },
-                { text: `${activityName}`, bold: true, clickable: true },
-                { text: '.', bold: false, clickable: false }
-              ],
-              type: activityName,
-              schedule: null
-            };
+            if (isOwnActivity) {
+              // With Another User (You + Others)
+              return {
+                messageParts: [
+                  { text: 'You and ', bold: false, clickable: false },
+                  { text: `${partnerNames[0]} `, bold: true, clickable: true },
+                  { text: 'did a ', bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: ' workout.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            } else {
+              // With Another User (Others Only)
+              return {
+                messageParts: [
+                  { text: `${username} and ${partnerNames[0]} did a `, bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: ' workout.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            }
           } else if (partnerNames.length === 2) {
+            if (isOwnActivity) {
+              // Group Activity (You in Group) - 2 partners
+              return {
+                messageParts: [
+                  { text: 'You did a ', bold: false, clickable: false },
+                  { text: `${activityName} `, bold: true, clickable: true },
+                  { text: 'workout with ', bold: false, clickable: false },
+                  { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            } else {
+              // Group Activity (Others Only) - 2 partners
+              return {
+                messageParts: [
+                  { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} did a `, bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: ' workout.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            }
+          } else {
+            if (isOwnActivity) {
+              // Group Activity (You in Group) - 3+ partners
+              const firstTwo = partnerNames.slice(0, 2).join(', ');
+              const remaining = partnerNames.length - 2;
+              return {
+                messageParts: [
+                  { text: 'You did a ', bold: false, clickable: false },
+                  { text: `${activityName} `, bold: true, clickable: true },
+                  { text: 'workout with ', bold: false, clickable: false },
+                  { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            } else {
+              // Group Activity (Others Only) - 3+ partners
+              const firstTwo = partnerNames.slice(0, 2).join(', ');
+              const remaining = partnerNames.length - 2;
+              return {
+                messageParts: [
+                  { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did a `, bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: ' workout.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            }
+          }
+        } else {
+          if (isOwnActivity) {
+            // Solo Activity (You)
             return {
               messageParts: [
-                { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} did `, bold: false, clickable: false },
+                { text: 'You did a ', bold: false, clickable: false },
                 { text: `${activityName}`, bold: true, clickable: true },
-                { text: '.', bold: false, clickable: false }
+                { text: ' workout.', bold: false, clickable: false }
               ],
               type: activityName,
               schedule: null
             };
           } else {
-            const firstTwo = partnerNames.slice(0, 2).join(', ');
-            const remaining = partnerNames.length - 2;
+            // Solo Activity (Others)
             return {
               messageParts: [
-                { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did `, bold: false, clickable: false },
+                { text: `${username} did a `, bold: false, clickable: false },
                 { text: `${activityName}`, bold: true, clickable: true },
-                { text: '.', bold: false, clickable: false }
+                { text: ' workout.', bold: false, clickable: false }
               ],
               type: activityName,
               schedule: null
             };
           }
-        } else {
-          return {
-            messageParts: [
-              { text: `${username} did `, bold: false, clickable: false },
-              { text: `${activityName}`, bold: true, clickable: true },
-              { text: '.', bold: false, clickable: false }
-            ],
-            type: activityName,
-            schedule: null
-          };
         }
       }
       break;
@@ -397,17 +555,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
 
-    // Only get users that YOU follow (not users who follow you)
+    // Get pagination parameters
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '8');
+    const offset = (page - 1) * limit;
+
+    // Get users that YOU follow (where you are the user_id) - DISTINCT to handle duplicates
     const { data: friends } = await supabase
       .from('friends')
       .select('user_id, friend_id')
       .eq('approved', true)
       .eq('user_id', user.id); // Only get friendships where YOU are the user_id (you follow them)
 
+
+    // Use Set to automatically handle duplicates
     const friendIds = new Set<string>();
     friends?.forEach(friendship => {
       friendIds.add(friendship.friend_id);
     });
+
+    // Include your own posts in the feed
+    friendIds.add(user.id);
 
     const friendIdsArray = Array.from(friendIds);
     
@@ -415,6 +584,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: [],
+        pagination: {
+          page,
+          limit,
+          hasMore: false,
+          nextPage: null,
+          total: 0
+        }
       });
     }
 
@@ -444,7 +620,7 @@ export async function GET(request: NextRequest) {
       `)
       .in('user_id', friendIdsArray)
       .order('created_at', { ascending: false })
-      .limit(20);
+      .range(offset, offset + limit - 1);
 
     if (activitiesError) {
       return NextResponse.json(
@@ -454,7 +630,7 @@ export async function GET(request: NextRequest) {
     }
 
     const transformedActivities = await Promise.all((activities as unknown as ActivityFeedItem[])?.map(async (activity) => {
-      const formatted = await formatActivityMessage(activity);
+      const formatted = await formatActivityMessage(activity, user.id);
       const extraData = activity.extra_data || {};
       
       return {
@@ -474,16 +650,28 @@ export async function GET(request: NextRequest) {
         commentCount: activity.comment_count || 0,
         activity_type: activity.type,
         collaborationPartners: activity.collaboration_partners || [],
-        image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } : undefined,
+        image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } : 
+               'photos' in extraData && Array.isArray(extraData.photos) && extraData.photos.length > 0 ? { uri: extraData.photos[0] } : undefined,
         routeData: 'route_data' in extraData ? extraData.route_data : undefined,
         distance: 'distance' in extraData ? extraData.distance : undefined,
         duration: 'duration' in extraData ? extraData.duration : undefined
       };
     }) || []);
 
+    // Check if there are more pages
+    const hasMore = transformedActivities.length === limit;
+    const nextPage = hasMore ? page + 1 : null;
+
     return NextResponse.json({
       success: true,
       data: transformedActivities,
+      pagination: {
+        page,
+        limit,
+        hasMore,
+        nextPage,
+        total: transformedActivities.length
+      }
     });
 
   } catch {
