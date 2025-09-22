@@ -23,7 +23,6 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const imageData = formData.get('imageData') as string;
-    const activityId = formData.get('activityId') as string;
 
     if (!imageData) {
       return NextResponse.json(
@@ -77,7 +76,7 @@ export async function POST(request: NextRequest) {
     
     if (!activityPhotosBucketExists) {
       console.log('Creating activity-photos bucket...');
-      const { data: bucket, error: bucketError } = await supabaseAdmin.storage.createBucket('activity-photos', {
+      const { error: bucketError } = await supabaseAdmin.storage.createBucket('activity-photos', {
         public: true,
         allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
         fileSizeLimit: 10485760, // 10MB
