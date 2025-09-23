@@ -8,9 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "check": "npm run lint && npm run type-check && npm run build && echo '✅ All checks passed!'",
-    "precommit": "npm run check",
-    "scrape-luma": "npx tsx scripts/scrape-luma-events.ts"
+    "check": "yarn lint && yarn type-check && yarn build && echo '✅ All checks passed!'",
+    "precommit": "yarn check",
+    "scrape-luma": "yarn tsx scripts/scrape-luma-events.ts"
   },
   "dependencies": {
     "@sparticuz/chromium": "^138.0.2",

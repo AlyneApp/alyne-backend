@@ -65,8 +65,8 @@ async function runFullScraping() {
     console.log('   1. Make sure the events table exists in your database');
     console.log('   2. Check your internet connection');
     console.log('   3. Verify the Girls Who Meet and Luma websites are accessible');
-    console.log('   4. Run: npm run test-scraper (to test without DB updates)');
-    console.log('   5. Run: npm run test-luma-scraper (to test Luma scraper)');
+    console.log('   4. Run: yarn test-scraper (to test without DB updates)');
+    console.log('   5. Run: yarn test-luma-scraper (to test Luma scraper)');
   }
 }
 

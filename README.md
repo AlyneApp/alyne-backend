@@ -6,20 +6,20 @@ A Next.js backend API for the Alyne fitness platform with Supabase integration, 
 
 ```bash
 # Install dependencies
-npm install
+yarn install
 
 # Set up environment variables
 cp .env.example .env.local
 # Edit .env.local with your Supabase credentials
 
 # Run development server
-npm run dev
+yarn dev
 
 # Build for production
-npm run build
+yarn build
 
 # Start production server
-npm start
+yarn start
 ```
 
 ## 📁 Project Structure
@@ -74,14 +74,14 @@ The repository now uses only the essential configuration files:
 
 ## 🛠️ Scripts
 
-- `npm run dev` - Development server with Turbopack
-- `npm run build` - Production build
-- `npm run start` - Production server
-- `npm run lint` - ESLint checking
-- `npm run lint:fix` - ESLint with auto-fix
-- `npm run type-check` - TypeScript type checking
-- `npm run check` - Full validation (lint + types + build)
-- `npm run precommit` - Pre-commit validation
+- `yarn dev` - Development server with Turbopack
+- `yarn build` - Production build
+- `yarn start` - Production server
+- `yarn lint` - ESLint checking
+- `yarn lint:fix` - ESLint with auto-fix
+- `yarn type-check` - TypeScript type checking
+- `yarn check` - Full validation (lint + types + build)
+- `yarn precommit` - Pre-commit validation
 
 ## 🔐 Authentication
 
@@ -191,7 +191,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Run `npm run check`
+4. Run `yarn check`
 5. Submit a pull request
 
 ## 📄 License
