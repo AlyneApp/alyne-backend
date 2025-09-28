@@ -96,6 +96,11 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('Found studios:', studios);
+    
+    // Debug: Log studio image data
+    studios?.forEach(studio => {
+      console.log(`Studio ${studio.name}: image_urls =`, studio.image_urls);
+    });
 
     // Create a map of studio data by ID
     const studioMap = studios?.reduce((acc, studio) => {
@@ -104,12 +109,21 @@ export async function GET(request: NextRequest) {
     }, {} as { [key: string]: typeof studios[0] }) || {};
 
     // Transform the data to include studio information
-    const favorites = uniqueRatings.slice(0, 5).map(rating => ({
-      id: rating.rated_entity_id,
-      rating: rating.rating,
-      studio: studioMap[rating.rated_entity_id] || null,
-      created_at: rating.created_at,
-    })).filter(item => item.studio) || [];
+    const favorites = uniqueRatings.slice(0, 5).map(rating => {
+      const studio = studioMap[rating.rated_entity_id];
+      if (!studio) return null;
+      
+      return {
+        id: rating.rated_entity_id,
+        rating: rating.rating,
+        studio: {
+          ...studio,
+          image_urls: studio.image_urls || [], // Ensure image_urls is always an array
+          image_url: studio.image_urls?.[0] || null, // Let frontend handle default image
+        },
+        created_at: rating.created_at,
+      };
+    }).filter(item => item !== null) || [];
 
     return NextResponse.json({
       success: true,

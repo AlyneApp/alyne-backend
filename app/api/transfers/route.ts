@@ -50,6 +50,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create transfer' }, { status: 500 });
     }
 
+    // If this is a feed transfer, create an activity feed entry
+    if (transferType === 'feed') {
+      // Get studio information
+      const { data: studio } = await supabaseAdmin
+        .from('studios')
+        .select('id, name')
+        .eq('name', bookingData.studioName)
+        .single();
+
+      // Create activity feed entry for the transfer
+      const { error: activityError } = await supabaseAdmin
+        .from('activity_feed')
+        .insert({
+          user_id: userId,
+          type: 'class_transfer',
+          studio_id: studio?.id || null,
+          content: `New Transfer Available: ${bookingData.className} at ${bookingData.studioName}`,
+          extra_data: {
+            class_name: bookingData.className,
+            class_schedule: `${bookingData.date} ${bookingData.time}`,
+            transfer_id: transfer.id
+          },
+          visibility: 'public'
+        });
+
+      if (activityError) {
+        console.error('Error creating activity feed entry:', activityError);
+        // Don't fail the transfer creation if activity feed fails
+      }
+    }
+
     return NextResponse.json({ 
       success: true, 
       data: transfer 

@@ -59,6 +59,13 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('Found activities:', activities);
+    
+    // Debug: Log studio data to see image_urls
+    activities?.forEach(activity => {
+      if (activity.studios) {
+        console.log(`Studio ${activity.studios.name}: image_urls =`, activity.studios.image_urls);
+      }
+    });
 
     // Get unique studios (remove duplicates)
     const uniqueStudios = new Map();

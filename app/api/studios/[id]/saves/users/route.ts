@@ -70,6 +70,9 @@ export async function GET(
       );
     }
 
+    console.log(`Found ${saves?.length || 0} saves for studio ${studioId}`);
+    console.log('Saves data:', saves);
+
     if (!saves || saves.length === 0) {
       return NextResponse.json({
         success: true,
@@ -79,13 +82,15 @@ export async function GET(
 
     // Transform the data to match the expected format
     const usersWhoSaved = saves
-      .filter(save => save.users && save.users.length > 0) // Filter out any null users
+      .filter(save => save.users) // Filter out any null users
       .map(save => ({
-        id: save.users[0].id,
-        username: save.users[0].username,
-        full_name: save.users[0].full_name,
-        avatar_url: save.users[0].avatar_url,
+        id: save.users.id,
+        username: save.users.username,
+        full_name: save.users.full_name,
+        avatar_url: save.users.avatar_url,
       }));
+
+    console.log(`Returning ${usersWhoSaved.length} users who saved this studio`);
 
     return NextResponse.json({
       success: true,

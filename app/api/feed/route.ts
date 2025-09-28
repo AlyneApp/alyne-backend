@@ -81,10 +81,11 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   { text: 'You and ', bold: false, clickable: false },
                   { text: `${partnerNames[0]} `, bold: true, clickable: true },
                   { text: 'took a ', bold: false, clickable: false },
-                  { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                  { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'class at ', bold: false, clickable: false },
                   { text: `${activity.studios.name}`, bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name ? ` taught by ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
                 ],
                 type: classMetadata.class_name,
@@ -99,11 +100,15 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               // With Another User (Others Only)
               return {
                 messageParts: [
-                  { text: `${username} and ${partnerNames[0]} took a `, bold: false, clickable: false },
-                  { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                  { text: `${username} `, bold: true, clickable: true },
+                  { text: 'and ', bold: false, clickable: false },
+                  { text: `${partnerNames[0]} `, bold: true, clickable: true },
+                  { text: 'took a ', bold: false, clickable: false },
+                  { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'class at ', bold: false, clickable: false },
                   { text: `${activity.studios.name}`, bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name ? ` taught by ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
                 ],
                 type: classMetadata.class_name,
@@ -121,12 +126,13 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               return {
                 messageParts: [
                   { text: 'You took ', bold: false, clickable: false },
-                  { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                  { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'at ', bold: false, clickable: false },
                   { text: `${activity.studios.name} `, bold: true, clickable: true },
                   { text: 'with ', bold: false, clickable: false },
                   { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? `, taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name ? `, taught by ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
                 ],
                 type: classMetadata.class_name,
@@ -141,11 +147,16 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               // Group Class Attendance (Others Only) - 2 partners
               return {
                 messageParts: [
-                  { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} took a `, bold: false, clickable: false },
-                  { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                  { text: `${username}, `, bold: true, clickable: true },
+                  { text: `${partnerNames[0]}, `, bold: true, clickable: true },
+                  { text: 'and ', bold: false, clickable: false },
+                  { text: `${partnerNames[1]} `, bold: true, clickable: true },
+                  { text: 'took a ', bold: false, clickable: false },
+                  { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'class at ', bold: false, clickable: false },
                   { text: `${activity.studios.name}`, bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name ? ` taught by ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
                 ],
                 type: classMetadata.class_name,
@@ -165,12 +176,13 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               return {
                 messageParts: [
                   { text: 'You took ', bold: false, clickable: false },
-                  { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                  { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'at ', bold: false, clickable: false },
                   { text: `${activity.studios.name} `, bold: true, clickable: true },
                   { text: 'with ', bold: false, clickable: false },
                   { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? `, taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name ? `, taught by ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
                 ],
                 type: classMetadata.class_name,
@@ -187,11 +199,16 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               const remaining = partnerNames.length - 2;
               return {
                 messageParts: [
-                  { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} took a `, bold: false, clickable: false },
-                  { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                  { text: `${username}, `, bold: true, clickable: true },
+                  { text: `${firstTwo}, `, bold: true, clickable: true },
+                  { text: 'and ', bold: false, clickable: false },
+                  { text: `${remaining} other${remaining > 1 ? 's' : ''} `, bold: true, clickable: true },
+                  { text: 'took a ', bold: false, clickable: false },
+                  { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'class at ', bold: false, clickable: false },
                   { text: `${activity.studios.name}`, bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name ? ` taught by ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
                 ],
                 type: classMetadata.class_name,
@@ -210,10 +227,11 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
             return {
               messageParts: [
                 { text: 'You took a ', bold: false, clickable: false },
-                { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                 { text: 'class at ', bold: false, clickable: false },
                 { text: `${activity.studios.name}`, bold: true, clickable: true },
-                { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                { text: classMetadata.instructor_name ? ` taught by ` : '', bold: false, clickable: false },
+                { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                 { text: '.', bold: false, clickable: false }
               ],
               type: classMetadata.class_name,
@@ -228,11 +246,13 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
             // Solo Attendance (Others)
             return {
               messageParts: [
-                { text: `${username} took a `, bold: false, clickable: false },
-                { text: `${classMetadata.class_name} `, bold: true, clickable: true },
+                { text: `${username} `, bold: true, clickable: true },
+                { text: 'took a ', bold: false, clickable: false },
+                { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                 { text: 'class at ', bold: false, clickable: false },
                 { text: `${activity.studios.name}`, bold: true, clickable: true },
-                { text: classMetadata.instructor_name ? ` taught by ${classMetadata.instructor_name}` : '', bold: false, clickable: false },
+                { text: classMetadata.instructor_name ? ` taught by ` : '', bold: false, clickable: false },
+                { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                 { text: '.', bold: false, clickable: false }
               ],
               type: classMetadata.class_name,
@@ -629,9 +649,60 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Fetch ratings for activities that have studio_id
+    const activityIds = activities?.map(activity => activity.id) || [];
+    const studioIds = activities?.map(activity => activity.studio_id).filter(Boolean) || [];
+    
+    let ratingsMap = new Map();
+    if (activityIds.length > 0 && studioIds.length > 0) {
+      const { data: ratings, error: ratingsError } = await supabase
+        .from('activity_ratings')
+        .select(`
+          activity_id,
+          rating,
+          rated_entity_id
+        `)
+        .in('activity_id', activityIds)
+        .eq('rating_type', 'studio')
+        .in('rated_entity_id', studioIds);
+
+      if (!ratingsError && ratings) {
+        ratings.forEach(rating => {
+          ratingsMap.set(rating.activity_id, rating.rating);
+        });
+      }
+    }
+
+    // Get actual like counts from activity_feed_likes table
+    const { data: likeCounts } = await supabase
+      .from('activity_feed_likes')
+      .select('activity_id')
+      .in('activity_id', activityIds);
+
+    // Count likes per activity
+    const actualLikeCounts = new Map();
+    likeCounts?.forEach(like => {
+      const currentCount = actualLikeCounts.get(like.activity_id) || 0;
+      actualLikeCounts.set(like.activity_id, currentCount + 1);
+    });
+
+    console.log('📊 Actual like counts from database:', Array.from(actualLikeCounts.entries()));
+
     const transformedActivities = await Promise.all((activities as unknown as ActivityFeedItem[])?.map(async (activity) => {
       const formatted = await formatActivityMessage(activity, user.id);
       const extraData = activity.extra_data || {};
+      
+      // Debug logging for images
+      if (extraData.photos || extraData.image_url) {
+        console.log('📸 Feed API - Activity with images:', {
+          id: activity.id,
+          hasPhotos: !!extraData.photos,
+          photosCount: Array.isArray(extraData.photos) ? extraData.photos.length : 0,
+          hasImageUrl: !!extraData.image_url,
+          imageUrl: extraData.image_url,
+          photos: extraData.photos
+        });
+      }
       
       return {
         id: activity.id,
@@ -643,18 +714,31 @@ export async function GET(request: NextRequest) {
         schedule: formatted.schedule,
         type: formatted.type,
         location: activity.studios?.name || '',
+        studioId: activity.studios?.id || null,
         instructor: 'instructor_name' in extraData ? extraData.instructor_name || '' : '',
+        instructorId: 'instructor_id' in extraData ? extraData.instructor_id || null : null,
         timestamp: getRelativeTime(activity.created_at),
         buttonLabel: formatted.buttonLabel || undefined,
-        likeCount: activity.like_count || 0,
+        likeCount: actualLikeCounts.get(activity.id) || 0,
         commentCount: activity.comment_count || 0,
         activity_type: activity.type,
         collaborationPartners: activity.collaboration_partners || [],
+        partnerNames: activity.collaboration_partners && activity.collaboration_partners.length > 0 ? 
+          (await supabase
+            .from('users')
+            .select('full_name, username, id')
+            .in('id', activity.collaboration_partners)
+            .then(({ data }) => data?.map(user => ({
+              id: user.id,
+              name: user.full_name || user.username || 'Someone'
+            })) || [])) : [],
         image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } : 
                'photos' in extraData && Array.isArray(extraData.photos) && extraData.photos.length > 0 ? { uri: extraData.photos[0] } : undefined,
+        photos: 'photos' in extraData && Array.isArray(extraData.photos) ? extraData.photos.map((url: string) => ({ uri: url })) : [],
         routeData: 'route_data' in extraData ? extraData.route_data : undefined,
         distance: 'distance' in extraData ? extraData.distance : undefined,
-        duration: 'duration' in extraData ? extraData.duration : undefined
+        duration: 'duration' in extraData ? extraData.duration : undefined,
+        rating: ratingsMap.get(activity.id) || null
       };
     }) || []);
 

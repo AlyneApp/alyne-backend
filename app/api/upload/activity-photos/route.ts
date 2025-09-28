@@ -24,7 +24,14 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const imageData = formData.get('imageData') as string;
 
+    console.log('📸 Activity Photos API - Received request:', {
+      hasImageData: !!imageData,
+      imageDataLength: imageData?.length || 0,
+      imageDataPreview: imageData?.substring(0, 50) + '...' || 'none'
+    });
+
     if (!imageData) {
+      console.log('📸 Activity Photos API - No image data provided');
       return NextResponse.json(
         { error: 'No image data provided' },
         { status: 400 }
@@ -112,18 +119,22 @@ export async function POST(request: NextRequest) {
       .from('activity-photos')
       .getPublicUrl(filePath);
 
-    console.log('Successfully uploaded activity photo:', {
+    console.log('📸 Activity Photos API - Successfully uploaded:', {
       path: uploadData.path,
       url: urlData.publicUrl
     });
 
-    return NextResponse.json({
+    const response = {
       success: true,
       data: {
         url: urlData.publicUrl,
         path: uploadData.path
       }
-    });
+    };
+
+    console.log('📸 Activity Photos API - Returning response:', response);
+
+    return NextResponse.json(response);
 
   } catch (error) {
     console.error('Error in activity photos upload API:', error);

@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       location: studio.address || 'Location not specified',
       class_type: studio.type || 'Fitness',
       distance: `${Math.floor(Math.random() * 20) + 1} min away`,
-      image_url: studio.image_urls?.[0] || 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=400&q=80',
+      image_url: studio.image_urls?.[0] || null, // Let frontend handle default image
       rating: Number((Math.random() * 1.5 + 3.5).toFixed(1)),
       price_range: ['$$', '$$$', '$$$$'][Math.floor(Math.random() * 3)],
     }));

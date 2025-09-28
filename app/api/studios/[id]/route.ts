@@ -74,7 +74,7 @@ export async function GET(
     // Transform the data for frontend compatibility
     const transformedStudio = {
       ...studio,
-      image_url: studio.image_urls?.[0] || 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=400&q=80', // Use first image from array or fallback
+      image_url: studio.image_urls?.[0] || null, // Let frontend handle default image
       image_urls: studio.image_urls || [], // Ensure image_urls is always an array
       website_url: studio.website || null, // Include website URL if available (mapped from 'website' field)
       contact: studio.contact || null, // Include contact number if available
