@@ -84,10 +84,10 @@ export async function GET(
     const usersWhoSaved = saves
       .filter(save => save.users) // Filter out any null users
       .map(save => ({
-        id: save.users.id,
-        username: save.users.username,
-        full_name: save.users.full_name,
-        avatar_url: save.users.avatar_url,
+        id: (save.users as any).id,
+        username: (save.users as any).username,
+        full_name: (save.users as any).full_name,
+        avatar_url: (save.users as any).avatar_url,
       }));
 
     console.log(`Returning ${usersWhoSaved.length} users who saved this studio`);

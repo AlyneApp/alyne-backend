@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     // Debug: Log studio data to see image_urls
     activities?.forEach(activity => {
       if (activity.studios) {
-        console.log(`Studio ${activity.studios.name}: image_urls =`, activity.studios.image_urls);
+        console.log(`Studio ${(activity.studios as any).name}: image_urls =`, (activity.studios as any).image_urls);
       }
     });
 

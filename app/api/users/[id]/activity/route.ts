@@ -568,14 +568,14 @@ export async function GET(
       const extraData = activity.extra_data || {};
       
       // Debug logging for images
-      if (extraData.photos || extraData.image_url) {
+      if ((extraData as any).photos || (extraData as any).image_url) {
         console.log('📸 User Activity API - Activity with images:', {
           id: activity.id,
-          hasPhotos: !!extraData.photos,
-          photosCount: Array.isArray(extraData.photos) ? extraData.photos.length : 0,
-          hasImageUrl: !!extraData.image_url,
-          imageUrl: extraData.image_url,
-          photos: extraData.photos
+          hasPhotos: !!(extraData as any).photos,
+          photosCount: Array.isArray((extraData as any).photos) ? (extraData as any).photos.length : 0,
+          hasImageUrl: !!(extraData as any).image_url,
+          imageUrl: (extraData as any).image_url,
+          photos: (extraData as any).photos
         });
       }
       
