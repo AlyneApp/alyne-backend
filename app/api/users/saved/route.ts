@@ -29,6 +29,40 @@ export async function GET(request: NextRequest) {
     // Get userId from query params, default to current user
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get('userId') || user.id;
+    const isOwnProfile = user.id === targetUserId;
+
+    // Check if current user can view the target user's content
+    if (!isOwnProfile) {
+      // Get target user's privacy settings
+      const { data: targetUser, error: userError } = await supabase
+        .from('users')
+        .select('is_private')
+        .eq('id', targetUserId)
+        .single();
+
+      if (userError || !targetUser) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+
+      // If user is private, check if current user follows them
+      if (targetUser.is_private) {
+        const { data: followData } = await supabase
+          .from('friends')
+          .select('approved')
+          .eq('user_id', user.id)
+          .eq('friend_id', targetUserId)
+          .single();
+
+        const isFollowing = !!followData?.approved;
+        
+        if (!isFollowing) {
+          return NextResponse.json({ 
+            error: 'This account is private. Follow to see their saved studios.',
+            can_view_content: false 
+          }, { status: 403 });
+        }
+      }
+    }
 
     // Get all studios the target user has saved
     const { data: saves, error: savesError } = await authenticatedSupabase

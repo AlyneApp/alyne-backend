@@ -506,6 +506,39 @@ export async function GET(
     const targetUserId = id;
     const isOwnActivity = user.id === targetUserId;
     
+    // Check if current user can view the target user's content
+    if (!isOwnActivity) {
+      // Get target user's privacy settings
+      const { data: targetUser, error: userError } = await supabase
+        .from('users')
+        .select('is_private')
+        .eq('id', targetUserId)
+        .single();
+
+      if (userError || !targetUser) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+
+      // If user is private, check if current user follows them
+      if (targetUser.is_private) {
+        const { data: followData } = await supabase
+          .from('friends')
+          .select('approved')
+          .eq('user_id', user.id)
+          .eq('friend_id', targetUserId)
+          .single();
+
+        const isFollowing = !!followData?.approved;
+        
+        if (!isFollowing) {
+          return NextResponse.json({ 
+            error: 'This account is private. Follow to see their activity.',
+            can_view_content: false 
+          }, { status: 403 });
+        }
+      }
+    }
+    
     // Get pagination parameters
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');

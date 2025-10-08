@@ -71,6 +71,41 @@ export async function GET(
       }
     }
 
+    // Fetch popular instructor details if popular_instructors field contains user IDs
+    let popularInstructors: Array<{
+      id: string;
+      username: string;
+      full_name: string | null;
+      avatar_url: string | null;
+    }> = [];
+    
+    if (studio.popular_instructors && Array.isArray(studio.popular_instructors) && studio.popular_instructors.length > 0) {
+      // Check if the first item is a UUID (user ID) or a string (name)
+      const firstPopularInstructor = studio.popular_instructors[0];
+      const isUUID = typeof firstPopularInstructor === 'string' && 
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(firstPopularInstructor);
+      
+      if (isUUID) {
+        // If popular_instructors are UUIDs, fetch full user data
+        const { data: popularInstructorUsers, error: popularInstructorError } = await supabaseAdmin!
+          .from('users')
+          .select('id, username, full_name, avatar_url')
+          .in('id', studio.popular_instructors);
+
+        if (!popularInstructorError && popularInstructorUsers) {
+          popularInstructors = popularInstructorUsers;
+        }
+      } else {
+        // If popular_instructors are names, create instructor objects with the names
+        popularInstructors = studio.popular_instructors.map((name: string, index: number) => ({
+          id: `popular_${index}`,
+          username: name.toLowerCase().replace(/\s+/g, '_'),
+          full_name: name,
+          avatar_url: null
+        }));
+      }
+    }
+
     // Transform the data for frontend compatibility
     const transformedStudio = {
       ...studio,
@@ -80,20 +115,25 @@ export async function GET(
       contact: studio.contact || null, // Include contact number if available
       booking_link: studio.booking_site || null, // Include booking link if available (mapped from 'booking_site' field)
       instructors: instructors, // Include instructor details
+      popular_instructors: popularInstructors, // Include popular instructor details
     };
 
     console.log('Transformed studio data:', {
       id: transformedStudio.id,
       name: transformedStudio.name,
       image_urls: transformedStudio.image_urls,
-      image_urls_length: transformedStudio.image_urls?.length
+      image_urls_length: transformedStudio.image_urls?.length,
+      instructors: transformedStudio.instructors,
+      popular_instructors: transformedStudio.popular_instructors
     });
 
     console.log('📸 Studio API - Raw studio data from DB:', {
       id: studio.id,
       name: studio.name,
       image_urls: studio.image_urls,
-      image_urls_length: studio.image_urls?.length
+      image_urls_length: studio.image_urls?.length,
+      instructors: studio.instructors,
+      popular_instructors: studio.popular_instructors
     });
 
     return NextResponse.json({ 
