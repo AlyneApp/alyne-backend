@@ -63,7 +63,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
     case 'class_checkin':
       if (activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string' && 
           !['Custom', 'Custom Class', 'Activity'].includes(metadata.class_name)) {
-        const classMetadata = metadata as ClassActivityDetails;
+        const classMetadata = metadata as any;
         
         if (activity.collaboration_partners && activity.collaboration_partners.length > 0) {
           const { data: partnerUsers } = await supabase
@@ -271,6 +271,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
       
       if ('activity_name' in metadata || 'activity_type' in metadata) {
         const activityName = String((metadata as Record<string, unknown>).activity_name || (metadata as Record<string, unknown>).activity_type || 'a workout');
+        const classMetadata = metadata as any;
         
         if (activity.collaboration_partners && activity.collaboration_partners.length > 0) {
           const { data: partnerUsers } = await supabase
@@ -282,6 +283,15 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
             user.full_name || user.username || 'Someone'
           ) || [];
           
+          // Determine the correct terminology based on activity_type
+          const activityType = metadata.activity_type || 'movement';
+          let activityTerm = 'workout';
+          
+          // Only use "workout" for movement activities, otherwise just the activity name
+          if (activityType !== 'movement') {
+            activityTerm = '';
+          }
+          
           if (partnerNames.length === 1) {
             if (isOwnActivity) {
               // With Another User (You + Others)
@@ -291,7 +301,13 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   { text: `${partnerNames[0]} `, bold: true, clickable: true },
                   { text: 'did a ', bold: false, clickable: false },
                   { text: `${activityName}`, bold: true, clickable: true },
-                  { text: ' workout.', bold: false, clickable: false }
+                  { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
+                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name || '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                  { text: '.', bold: false, clickable: false }
                 ],
                 type: activityName,
                 schedule: null
@@ -302,7 +318,13 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 messageParts: [
                   { text: `${username} and ${partnerNames[0]} did a `, bold: false, clickable: false },
                   { text: `${activityName}`, bold: true, clickable: true },
-                  { text: ' workout.', bold: false, clickable: false }
+                  { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
+                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name || '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                  { text: '.', bold: false, clickable: false }
                 ],
                 type: activityName,
                 schedule: null
@@ -315,8 +337,14 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 messageParts: [
                   { text: 'You did a ', bold: false, clickable: false },
                   { text: `${activityName} `, bold: true, clickable: true },
-                  { text: 'workout with ', bold: false, clickable: false },
+                  { text: activityTerm ? `${activityTerm}` : '', bold: false, clickable: false },
+                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                  { text: ` with `, bold: false, clickable: false },
                   { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
+                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name || '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
                 ],
                 type: activityName,
@@ -328,7 +356,13 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 messageParts: [
                   { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} did a `, bold: false, clickable: false },
                   { text: `${activityName}`, bold: true, clickable: true },
-                  { text: ' workout.', bold: false, clickable: false }
+                  { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
+                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name || '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                  { text: '.', bold: false, clickable: false }
                 ],
                 type: activityName,
                 schedule: null
@@ -343,8 +377,14 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 messageParts: [
                   { text: 'You did a ', bold: false, clickable: false },
                   { text: `${activityName} `, bold: true, clickable: true },
-                  { text: 'workout with ', bold: false, clickable: false },
+                  { text: activityTerm ? `${activityTerm}` : '', bold: false, clickable: false },
+                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                  { text: ` with `, bold: false, clickable: false },
                   { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
+                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name || '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
                 ],
                 type: activityName,
@@ -358,7 +398,13 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 messageParts: [
                   { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did a `, bold: false, clickable: false },
                   { text: `${activityName}`, bold: true, clickable: true },
-                  { text: ' workout.', bold: false, clickable: false }
+                  { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
+                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name || '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                  { text: '.', bold: false, clickable: false }
                 ],
                 type: activityName,
                 schedule: null
@@ -366,13 +412,28 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
             }
           }
         } else {
+          // Determine the correct terminology based on activity_type
+          const activityType = metadata.activity_type || 'movement';
+          let activityTerm = 'workout';
+          
+          // Only use "workout" for movement activities, otherwise just the activity name
+          if (activityType !== 'movement') {
+            activityTerm = '';
+          }
+          
           if (isOwnActivity) {
             // Solo Activity (You)
             return {
               messageParts: [
                 { text: 'You did a ', bold: false, clickable: false },
                 { text: `${activityName}`, bold: true, clickable: true },
-                { text: ' workout.', bold: false, clickable: false }
+                { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
+                { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                { text: activity.studios?.name || '', bold: true, clickable: true },
+                { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                { text: '.', bold: false, clickable: false }
               ],
               type: activityName,
               schedule: null
@@ -383,7 +444,13 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               messageParts: [
                 { text: `${username} did a `, bold: false, clickable: false },
                 { text: `${activityName}`, bold: true, clickable: true },
-                { text: ' workout.', bold: false, clickable: false }
+                { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
+                { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                { text: activity.studios?.name || '', bold: true, clickable: true },
+                { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                { text: '.', bold: false, clickable: false }
               ],
               type: activityName,
               schedule: null
@@ -422,7 +489,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
       
     case 'class_transfer':
       if (activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string') {
-        const classMetadata = metadata as ClassActivityDetails;
+        const classMetadata = metadata as any;
         return {
           messageParts: [
             { text: 'New Transfer Available: ', bold: true, clickable: true },
@@ -693,6 +760,19 @@ export async function GET(request: NextRequest) {
     const transformedActivities = await Promise.all((activities as unknown as ActivityFeedItem[])?.map(async (activity) => {
       const formatted = await formatActivityMessage(activity, user.id);
       const extraData = activity.extra_data || {};
+      
+      // Debug logging for route data and metrics
+      console.log('🔍 Backend - Activity extra data:', {
+        id: activity.id,
+        activity_type: (activity as any).activity_type,
+        extraData: extraData,
+        hasRouteData: 'route_data' in extraData,
+        hasDistance: 'distance' in extraData,
+        hasDuration: 'duration' in extraData,
+        routeData: (extraData as any).route_data,
+        distance: (extraData as any).distance,
+        duration: (extraData as any).duration
+      });
       
       // Debug logging for images
       if ((extraData as any).photos || (extraData as any).image_url) {
