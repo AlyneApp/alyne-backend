@@ -136,12 +136,7 @@ export async function GET(request: NextRequest) {
     // Step 4: Convert map to array and sort by friend like count (descending)
     const sortedStudios = Array.from(studioLikeCounts.values())
       .sort((a, b) => b.like_count - a.like_count)
-      .slice(0, 10) // Limit to top 10
-      .map(studio => ({
-        ...studio,
-        distance: Math.floor(Math.random() * 20) + 1, // Random distance 1-20 mins for now
-        distance_unit: 'min away'
-      }));
+      .slice(0, 10); // Limit to top 10
 
 
 

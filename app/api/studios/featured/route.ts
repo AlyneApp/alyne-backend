@@ -71,7 +71,6 @@ export async function GET(request: Request) {
         name: studio.name,
         location: cleanAddress,
         class_type: studio.type || 'Fitness',
-        distance: `${Math.floor(Math.random() * 20) + 1} min away`,
         image_url: studio.image_urls?.[0] || null, // Let frontend handle default image
         rating: Number((Math.random() * 1.5 + 3.5).toFixed(1)),
         price_range: ['$$', '$$$', '$$$$'][Math.floor(Math.random() * 3)],
