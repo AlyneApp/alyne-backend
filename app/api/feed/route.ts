@@ -54,6 +54,11 @@ interface FormattedActivity {
   buttonLabel?: string;
 }
 
+// Helper function to get studio name (from join or extra_data)
+function getStudioName(activity: ActivityFeedItem): string {
+  return activity.studios?.name || (activity.extra_data as any)?.studio_name || 'Unknown Studio';
+}
+
 async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?: string): Promise<FormattedActivity> {
   const username = activity.users?.full_name || activity.users?.username || 'Someone';
   const metadata = activity.extra_data || {};
@@ -85,7 +90,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   { text: 'took a ', bold: false, clickable: false },
                   { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'class at ', bold: false, clickable: false },
-                  { text: `${activity.studios.name}`, bold: true, clickable: true },
+                  { text: `${getStudioName(activity)}`, bold: true, clickable: true },
                   { text: classMetadata.instructor_name ? ` taught by ` : '', bold: false, clickable: false },
                   { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
@@ -108,7 +113,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   { text: 'took a ', bold: false, clickable: false },
                   { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'class at ', bold: false, clickable: false },
-                  { text: `${activity.studios.name}`, bold: true, clickable: true },
+                  { text: `${getStudioName(activity)}`, bold: true, clickable: true },
                   { text: classMetadata.instructor_name ? ` taught by ` : '', bold: false, clickable: false },
                   { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
@@ -130,7 +135,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   { text: 'You took ', bold: false, clickable: false },
                   { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'at ', bold: false, clickable: false },
-                  { text: `${activity.studios.name} `, bold: true, clickable: true },
+                  { text: `${getStudioName(activity)} `, bold: true, clickable: true },
                   { text: 'with ', bold: false, clickable: false },
                   { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
                   { text: classMetadata.instructor_name ? `, taught by ` : '', bold: false, clickable: false },
@@ -156,7 +161,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   { text: 'took a ', bold: false, clickable: false },
                   { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'class at ', bold: false, clickable: false },
-                  { text: `${activity.studios.name}`, bold: true, clickable: true },
+                  { text: `${getStudioName(activity)}`, bold: true, clickable: true },
                   { text: classMetadata.instructor_name ? ` taught by ` : '', bold: false, clickable: false },
                   { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
@@ -180,7 +185,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   { text: 'You took ', bold: false, clickable: false },
                   { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'at ', bold: false, clickable: false },
-                  { text: `${activity.studios.name} `, bold: true, clickable: true },
+                  { text: `${getStudioName(activity)} `, bold: true, clickable: true },
                   { text: 'with ', bold: false, clickable: false },
                   { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
                   { text: classMetadata.instructor_name ? `, taught by ` : '', bold: false, clickable: false },
@@ -208,7 +213,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   { text: 'took a ', bold: false, clickable: false },
                   { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'class at ', bold: false, clickable: false },
-                  { text: `${activity.studios.name}`, bold: true, clickable: true },
+                  { text: `${getStudioName(activity)}`, bold: true, clickable: true },
                   { text: classMetadata.instructor_name ? ` taught by ` : '', bold: false, clickable: false },
                   { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
@@ -231,7 +236,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 { text: 'You took a ', bold: false, clickable: false },
                 { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                 { text: 'class at ', bold: false, clickable: false },
-                { text: `${activity.studios.name}`, bold: true, clickable: true },
+                { text: `${getStudioName(activity)}`, bold: true, clickable: true },
                 { text: classMetadata.instructor_name ? ` taught by ` : '', bold: false, clickable: false },
                 { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                 { text: '.', bold: false, clickable: false }
@@ -252,7 +257,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 { text: 'took a ', bold: false, clickable: false },
                 { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                 { text: 'class at ', bold: false, clickable: false },
-                { text: `${activity.studios.name}`, bold: true, clickable: true },
+                { text: `${getStudioName(activity)}`, bold: true, clickable: true },
                 { text: classMetadata.instructor_name ? ` taught by ` : '', bold: false, clickable: false },
                 { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                 { text: '.', bold: false, clickable: false }
@@ -465,7 +470,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
         return {
           messageParts: [
             { text: `${username} added `, bold: false, clickable: false },
-            { text: `${activity.studios.name} `, bold: true, clickable: true },
+            { text: `${getStudioName(activity)} `, bold: true, clickable: true },
             { text: 'to their favorites', bold: false, clickable: false }
           ],
           type: null,
@@ -479,7 +484,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
         return {
           messageParts: [
             { text: `${username} liked `, bold: false, clickable: false },
-            { text: `${activity.studios.name}`, bold: true, clickable: true }
+            { text: `${getStudioName(activity)}`, bold: true, clickable: true }
           ],
           type: null,
           schedule: null
@@ -496,7 +501,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
             { text: `${username} gave up their spot for `, bold: false, clickable: false },
             { text: `${classMetadata.class_name} `, bold: false, clickable: false },
             { text: 'at ', bold: false, clickable: false },
-            { text: `${activity.studios.name}. `, bold: true, clickable: true },
+            { text: `${getStudioName(activity)}. `, bold: true, clickable: true },
             { text: 'Feel free to take it!', bold: false, clickable: false }
           ],
           type: classMetadata.class_name,
@@ -516,7 +521,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
         return {
           messageParts: [
             { text: `${username} wants to try `, bold: false, clickable: false },
-            { text: `${activity.studios.name}`, bold: true, clickable: true }
+            { text: `${getStudioName(activity)}`, bold: true, clickable: true }
           ],
           type: null,
           schedule: null
@@ -718,26 +723,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch ratings for activities that have studio_id
+    // Fetch ratings for activities (studio, class, instructor)
     const activityIds = activities?.map(activity => activity.id) || [];
-    const studioIds = activities?.map(activity => activity.studio_id).filter(Boolean) || [];
     
-    let ratingsMap = new Map();
-    if (activityIds.length > 0 && studioIds.length > 0) {
+    let studioRatingsMap = new Map();
+    let classRatingsMap = new Map();
+    let instructorRatingsMap = new Map();
+    
+    if (activityIds.length > 0) {
+      // Fetch all ratings for these activities
       const { data: ratings, error: ratingsError } = await supabase
         .from('activity_ratings')
         .select(`
           activity_id,
           rating,
-          rated_entity_id
+          rated_entity_id,
+          rating_type
         `)
-        .in('activity_id', activityIds)
-        .eq('rating_type', 'studio')
-        .in('rated_entity_id', studioIds);
+        .in('activity_id', activityIds);
 
       if (!ratingsError && ratings) {
         ratings.forEach(rating => {
-          ratingsMap.set(rating.activity_id, rating.rating);
+          if (rating.rating_type === 'studio') {
+            studioRatingsMap.set(rating.activity_id, rating.rating);
+          } else if (rating.rating_type === 'class') {
+            classRatingsMap.set(rating.activity_id, rating.rating);
+          } else if (rating.rating_type === 'instructor') {
+            instructorRatingsMap.set(rating.activity_id, rating.rating);
+          }
         });
       }
     }
@@ -820,7 +833,9 @@ export async function GET(request: NextRequest) {
         routeData: 'route_data' in extraData ? extraData.route_data : undefined,
         distance: 'distance' in extraData ? extraData.distance : undefined,
         duration: 'duration' in extraData ? extraData.duration : undefined,
-        rating: ratingsMap.get(activity.id) || null
+        studioRating: studioRatingsMap.get(activity.id) || null,
+        classRating: classRatingsMap.get(activity.id) || null,
+        instructorRating: instructorRatingsMap.get(activity.id) || null
       };
     }) || []);
 
