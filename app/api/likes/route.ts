@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { NotificationService } from '@/lib/notifications';
 
 // POST /api/likes - Toggle like (Instagram-style)
 export async function POST(request: NextRequest) {
@@ -62,10 +63,10 @@ export async function POST(request: NextRequest) {
         .from('activity_feed_likes')
         .insert({ activity_id, user_id: user.id });
 
-      // Update like_count in activity_feed table
+      // Get activity owner and update like_count
       const { data: currentActivity } = await supabase
         .from('activity_feed')
-        .select('like_count')
+        .select('user_id, like_count')
         .eq('id', activity_id)
         .single();
 
@@ -76,6 +77,21 @@ export async function POST(request: NextRequest) {
           .from('activity_feed')
           .update({ like_count: newCount })
           .eq('id', activity_id);
+
+        // Create notification for the post owner (if not liking own post)
+        if (currentActivity.user_id !== user.id) {
+          try {
+            await NotificationService.createNotification('like', {
+              fromUserId: user.id,
+              toUserId: currentActivity.user_id,
+              relatedId: activity_id,
+              extraData: {}
+            });
+          } catch (notificationError) {
+            console.error('Error creating like notification:', notificationError);
+            // Don't fail the like creation if notification fails
+          }
+        }
       }
 
       return NextResponse.json({ success: true, liked: true });

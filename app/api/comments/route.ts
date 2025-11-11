@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { NotificationService } from '@/lib/notifications';
 
 // Type definitions
 interface UserData {
@@ -138,15 +139,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create comment' }, { status: 500 });
     }
 
-    // Update the comment_count in activity_feed table
-    const { data: currentActivity, error: fetchError } = await supabase
+    // Get the activity owner to send notification
+    const { data: activityData, error: activityError } = await supabase
       .from('activity_feed')
-      .select('comment_count')
+      .select('user_id, comment_count')
       .eq('id', activity_id)
       .single();
 
-    if (!fetchError && currentActivity) {
-      const newCount = (currentActivity.comment_count || 0) + 1;
+    if (!activityError && activityData) {
+      // Update comment_count
+      const newCount = (activityData.comment_count || 0) + 1;
       
       const { error: updateError } = await supabase
         .from('activity_feed')
@@ -155,6 +157,21 @@ export async function POST(request: NextRequest) {
 
       if (updateError) {
         console.error('Error updating comment count:', updateError);
+      }
+
+      // Create notification for the post owner (if not commenting on own post)
+      if (activityData.user_id !== user.id) {
+        try {
+          await NotificationService.createNotification('comment', {
+            fromUserId: user.id,
+            toUserId: activityData.user_id,
+            relatedId: activity_id,
+            extraData: {}
+          });
+        } catch (notificationError) {
+          console.error('Error creating comment notification:', notificationError);
+          // Don't fail the comment creation if notification fails
+        }
       }
     }
 

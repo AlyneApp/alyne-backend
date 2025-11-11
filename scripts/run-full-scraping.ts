@@ -1,10 +1,18 @@
 import { config } from 'dotenv';
 import { resolve } from 'path';
 
-// Load environment variables from .env file
+// Load environment variables from .env file FIRST, before any other imports
 config({ path: resolve(__dirname, '../.env') });
+config({ path: resolve(__dirname, '../.env.local') }); // Also try .env.local if it exists
 
-import { scrapeAndUpdateEvents } from './scrape-wellness-events';
+// Verify environment variables are loaded
+if (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
+  console.error('❌ Missing required Supabase environment variables');
+  console.error('Please ensure .env file contains:');
+  console.error('  - EXPO_PUBLIC_SUPABASE_URL');
+  console.error('  - EXPO_PUBLIC_SUPABASE_ANON_KEY');
+  process.exit(1);
+}
 
 async function runFullScraping() {
   console.log('🎯 Full Wellness Events Scraping Process');
@@ -23,28 +31,32 @@ async function runFullScraping() {
   console.log('');
   
   try {
+    // Dynamically import modules that depend on environment variables
+    // This ensures dotenv config is loaded first
+    const { scrapeAndUpdateEvents } = await import('./scrape-wellness-events');
+    
     // Scrape Girls Who Meet events
     console.log('📅 Scraping Girls Who Meet events...');
     await scrapeAndUpdateEvents();
     
-          // Scrape Luma events
-          console.log('📅 Scraping Luma events...');
-          const { LumaScraper } = await import('../lib/lumaScraper');
-          const lumaScraper = new LumaScraper();
-          try {
-            const lumaResult = await lumaScraper.scrapeAndSaveEvents();
-            console.log(`✅ Luma scraping completed:`);
-            console.log(`   - Scraped: ${lumaResult.scraped} events`);
-            console.log(`   - Inserted: ${lumaResult.inserted} new events`);
-            console.log(`   - Updated: ${lumaResult.updated} existing events`);
-            if (lumaResult.errors.length > 0) {
-              console.log(`   - Errors: ${lumaResult.errors.length}`);
-              lumaResult.errors.forEach(error => console.log(`     - ${error}`));
-            }
+    // Scrape Luma events
+    console.log('📅 Scraping Luma events...');
+    const { LumaScraper } = await import('../lib/lumaScraper');
+    const lumaScraper = new LumaScraper();
+    try {
+      const lumaResult = await lumaScraper.scrapeAndSaveEvents();
+      console.log(`✅ Luma scraping completed:`);
+      console.log(`   - Scraped: ${lumaResult.scraped} events`);
+      console.log(`   - Inserted: ${lumaResult.inserted} new events`);
+      console.log(`   - Updated: ${lumaResult.updated} existing events`);
+      if (lumaResult.errors.length > 0) {
+        console.log(`   - Errors: ${lumaResult.errors.length}`);
+        lumaResult.errors.forEach(error => console.log(`     - ${error}`));
+      }
 
-          } finally {
-            await lumaScraper.close();
-          }
+    } finally {
+      await lumaScraper.close();
+    }
     
     console.log('');
     console.log('✅ Scraping completed successfully!');

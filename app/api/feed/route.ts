@@ -291,6 +291,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           // Determine the correct terminology based on activity_type
           const activityType = metadata.activity_type || 'movement';
           let activityTerm = 'workout';
+          const isPractice = activityType === 'practice';
           
           // Only use "workout" for movement activities, otherwise just the activity name
           if (activityType !== 'movement') {
@@ -300,126 +301,238 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           if (partnerNames.length === 1) {
             if (isOwnActivity) {
               // With Another User (You + Others)
-              return {
-                messageParts: [
-                  { text: 'You and ', bold: false, clickable: false },
-                  { text: `${partnerNames[0]} `, bold: true, clickable: true },
-                  { text: 'did a ', bold: false, clickable: false },
-                  { text: `${activityName}`, bold: true, clickable: true },
-                  { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
-                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
-                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
-                  { text: activity.studios?.name || '', bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
-                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
-                  { text: '.', bold: false, clickable: false }
-                ],
-                type: activityName,
-                schedule: null
-              };
+              if (isPractice) {
+                // Practice format: "did a <class_name> <activityName> at <studio> by <instructor>"
+                // Partner is already included in "You and <partner>"
+                return {
+                  messageParts: [
+                    { text: 'You and ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
+                    { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
+                    { text: getStudioName(activity) || '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else {
+                return {
+                  messageParts: [
+                    { text: 'You and ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
+                    { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name || '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              }
             } else {
               // With Another User (Others Only)
-              return {
-                messageParts: [
-                  { text: `${username} and ${partnerNames[0]} did a `, bold: false, clickable: false },
-                  { text: `${activityName}`, bold: true, clickable: true },
-                  { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
-                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
-                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
-                  { text: activity.studios?.name || '', bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
-                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
-                  { text: '.', bold: false, clickable: false }
-                ],
-                type: activityName,
-                schedule: null
-              };
+              if (isPractice) {
+                // Practice format: "did a <class_name> <activityName> at <studio> by <instructor> with <partner>"
+                return {
+                  messageParts: [
+                    { text: `${username} and ${partnerNames[0]} did a `, bold: false, clickable: false },
+                    { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
+                    { text: getStudioName(activity) || '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else {
+                return {
+                  messageParts: [
+                    { text: `${username} and ${partnerNames[0]} did a `, bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
+                    { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name || '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              }
             }
           } else if (partnerNames.length === 2) {
             if (isOwnActivity) {
               // Group Activity (You in Group) - 2 partners
-              return {
-                messageParts: [
-                  { text: 'You did a ', bold: false, clickable: false },
-                  { text: `${activityName} `, bold: true, clickable: true },
-                  { text: activityTerm ? `${activityTerm}` : '', bold: false, clickable: false },
-                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
-                  { text: ` with `, bold: false, clickable: false },
-                  { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
-                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
-                  { text: activity.studios?.name || '', bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
-                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
-                  { text: '.', bold: false, clickable: false }
-                ],
-                type: activityName,
-                schedule: null
-              };
+              if (isPractice) {
+                return {
+                  messageParts: [
+                    { text: 'You did a ', bold: false, clickable: false },
+                    { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
+                    { text: getStudioName(activity) || '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: ' with ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else {
+                return {
+                  messageParts: [
+                    { text: 'You did a ', bold: false, clickable: false },
+                    { text: `${activityName} `, bold: true, clickable: true },
+                    { text: activityTerm ? `${activityTerm}` : '', bold: false, clickable: false },
+                    { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                    { text: ` with `, bold: false, clickable: false },
+                    { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
+                    { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name || '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              }
             } else {
               // Group Activity (Others Only) - 2 partners
-              return {
-                messageParts: [
-                  { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} did a `, bold: false, clickable: false },
-                  { text: `${activityName}`, bold: true, clickable: true },
-                  { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
-                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
-                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
-                  { text: activity.studios?.name || '', bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
-                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
-                  { text: '.', bold: false, clickable: false }
-                ],
-                type: activityName,
-                schedule: null
-              };
+              if (isPractice) {
+                return {
+                  messageParts: [
+                    { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} did a `, bold: false, clickable: false },
+                    { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
+                    { text: getStudioName(activity) || '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else {
+                return {
+                  messageParts: [
+                    { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} did a `, bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
+                    { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name || '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              }
             }
           } else {
             if (isOwnActivity) {
               // Group Activity (You in Group) - 3+ partners
               const firstTwo = partnerNames.slice(0, 2).join(', ');
               const remaining = partnerNames.length - 2;
-              return {
-                messageParts: [
-                  { text: 'You did a ', bold: false, clickable: false },
-                  { text: `${activityName} `, bold: true, clickable: true },
-                  { text: activityTerm ? `${activityTerm}` : '', bold: false, clickable: false },
-                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
-                  { text: ` with `, bold: false, clickable: false },
-                  { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
-                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
-                  { text: activity.studios?.name || '', bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
-                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
-                  { text: '.', bold: false, clickable: false }
-                ],
-                type: activityName,
-                schedule: null
-              };
+              if (isPractice) {
+                return {
+                  messageParts: [
+                    { text: 'You did a ', bold: false, clickable: false },
+                    { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
+                    { text: getStudioName(activity) || '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: ' with ', bold: false, clickable: false },
+                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else {
+                return {
+                  messageParts: [
+                    { text: 'You did a ', bold: false, clickable: false },
+                    { text: `${activityName} `, bold: true, clickable: true },
+                    { text: activityTerm ? `${activityTerm}` : '', bold: false, clickable: false },
+                    { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                    { text: ` with `, bold: false, clickable: false },
+                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
+                    { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name || '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              }
             } else {
               // Group Activity (Others Only) - 3+ partners
               const firstTwo = partnerNames.slice(0, 2).join(', ');
               const remaining = partnerNames.length - 2;
-              return {
-                messageParts: [
-                  { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did a `, bold: false, clickable: false },
-                  { text: `${activityName}`, bold: true, clickable: true },
-                  { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
-                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
-                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
-                  { text: activity.studios?.name || '', bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
-                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
-                  { text: '.', bold: false, clickable: false }
-                ],
-                type: activityName,
-                schedule: null
-              };
+              if (isPractice) {
+                return {
+                  messageParts: [
+                    { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did a `, bold: false, clickable: false },
+                    { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
+                    { text: getStudioName(activity) || '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else {
+                return {
+                  messageParts: [
+                    { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did a `, bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
+                    { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name || '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              }
             }
           }
         } else {
           // Determine the correct terminology based on activity_type
           const activityType = metadata.activity_type || 'movement';
           let activityTerm = 'workout';
+          const isPractice = activityType === 'practice';
           
           // Only use "workout" for movement activities, otherwise just the activity name
           if (activityType !== 'movement') {
@@ -428,38 +541,72 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           
           if (isOwnActivity) {
             // Solo Activity (You)
-            return {
-              messageParts: [
-                { text: 'You did a ', bold: false, clickable: false },
-                { text: `${activityName}`, bold: true, clickable: true },
-                { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
-                { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
-                { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
-                { text: activity.studios?.name || '', bold: true, clickable: true },
-                { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
-                { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
-                { text: '.', bold: false, clickable: false }
-              ],
-              type: activityName,
-              schedule: null
-            };
+            if (isPractice) {
+              return {
+                messageParts: [
+                  { text: 'You did a ', bold: false, clickable: false },
+                  { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
+                  { text: getStudioName(activity) || '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            } else {
+              return {
+                messageParts: [
+                  { text: 'You did a ', bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
+                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name || '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            }
           } else {
             // Solo Activity (Others)
-            return {
-              messageParts: [
-                { text: `${username} did a `, bold: false, clickable: false },
-                { text: `${activityName}`, bold: true, clickable: true },
-                { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
-                { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
-                { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
-                { text: activity.studios?.name || '', bold: true, clickable: true },
-                { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
-                { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
-                { text: '.', bold: false, clickable: false }
-              ],
-              type: activityName,
-              schedule: null
-            };
+            if (isPractice) {
+              return {
+                messageParts: [
+                  { text: `${username} did a `, bold: false, clickable: false },
+                  { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
+                  { text: getStudioName(activity) || '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            } else {
+              return {
+                messageParts: [
+                  { text: `${username} did a `, bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: activityTerm ? ` ${activityTerm}` : '', bold: false, clickable: false },
+                  { text: classMetadata.class_name ? ` (${classMetadata.class_name})` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name || '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            }
           }
         }
       }
@@ -655,24 +802,39 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '8');
     const offset = (page - 1) * limit;
 
-    // Get users that YOU follow (where you are the user_id) - DISTINCT to handle duplicates
-    const { data: friends } = await supabase
+    // Get users that YOU follow OR who follow YOU (bidirectional friendships)
+    // We need to check both directions since friendships can be initiated by either user
+    const { data: friends, error: friendsError } = await supabase
       .from('friends')
       .select('user_id, friend_id')
       .eq('approved', true)
-      .eq('user_id', user.id); // Only get friendships where YOU are the user_id (you follow them)
+      .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
 
+    if (friendsError) {
+      console.error('Error fetching friends:', friendsError);
+    }
+
+    console.log(`📊 Feed API - Found ${friends?.length || 0} approved friendships for user ${user.id}`);
 
     // Use Set to automatically handle duplicates
     const friendIds = new Set<string>();
     friends?.forEach(friendship => {
-      friendIds.add(friendship.friend_id);
+      if (friendship.user_id === user.id) {
+        // You follow them
+        friendIds.add(friendship.friend_id);
+        console.log(`  → You follow: ${friendship.friend_id}`);
+      } else {
+        // They follow you
+        friendIds.add(friendship.user_id);
+        console.log(`  → They follow you: ${friendship.user_id}`);
+      }
     });
 
     // Include your own posts in the feed
     friendIds.add(user.id);
 
     const friendIdsArray = Array.from(friendIds);
+    console.log(`📊 Feed API - Total friend IDs (including self): ${friendIdsArray.length}`, friendIdsArray);
     
     if (friendIdsArray.length === 0) {
       return NextResponse.json({
@@ -688,6 +850,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    console.log(`📊 Feed API - Querying activities for ${friendIdsArray.length} friend IDs:`, friendIdsArray);
+    
     const { data: activities, error: activitiesError } = await supabase
       .from('activity_feed')
       .select(`
@@ -715,6 +879,13 @@ export async function GET(request: NextRequest) {
       .in('user_id', friendIdsArray)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
+
+    console.log(`📊 Feed API - Found ${activities?.length || 0} activities`);
+    if (activities && activities.length > 0) {
+      activities.forEach((activity: any) => {
+        console.log(`  → Activity ${activity.id} by user ${activity.user_id} (${activity.users?.username || activity.users?.full_name || 'unknown'})`);
+      });
+    }
 
     if (activitiesError) {
       return NextResponse.json(
@@ -746,12 +917,22 @@ export async function GET(request: NextRequest) {
         ratings.forEach(rating => {
           if (rating.rating_type === 'studio') {
             studioRatingsMap.set(rating.activity_id, rating.rating);
+            console.log(`📊 Mapped studio rating for activity ${rating.activity_id}: ${rating.rating}`);
           } else if (rating.rating_type === 'class') {
             classRatingsMap.set(rating.activity_id, rating.rating);
+            console.log(`📊 Mapped class rating for activity ${rating.activity_id}: ${rating.rating}`);
           } else if (rating.rating_type === 'instructor') {
             instructorRatingsMap.set(rating.activity_id, rating.rating);
+            console.log(`📊 Mapped instructor rating for activity ${rating.activity_id}: ${rating.rating}`);
           }
         });
+        console.log(`📊 Total ratings fetched: ${ratings.length}`, {
+          studio: studioRatingsMap.size,
+          class: classRatingsMap.size,
+          instructor: instructorRatingsMap.size
+        });
+      } else if (ratingsError) {
+        console.error('Error fetching ratings:', ratingsError);
       }
     }
 
@@ -799,7 +980,7 @@ export async function GET(request: NextRequest) {
         });
       }
       
-      return {
+      const result = {
         id: activity.id,
         userId: activity.user_id, // Add user ID for navigation
         avatarUrl: activity.users?.avatar_url || '',
@@ -816,7 +997,7 @@ export async function GET(request: NextRequest) {
         buttonLabel: formatted.buttonLabel || undefined,
         likeCount: actualLikeCounts.get(activity.id) || 0,
         commentCount: activity.comment_count || 0,
-        activity_type: activity.type,
+        activity_type: 'activity_type' in extraData ? (extraData.activity_type as string) : activity.type,
         collaborationPartners: activity.collaboration_partners || [],
         partnerNames: activity.collaboration_partners && activity.collaboration_partners.length > 0 ? 
           (await supabase
@@ -835,8 +1016,25 @@ export async function GET(request: NextRequest) {
         duration: 'duration' in extraData ? extraData.duration : undefined,
         studioRating: studioRatingsMap.get(activity.id) || null,
         classRating: classRatingsMap.get(activity.id) || null,
-        instructorRating: instructorRatingsMap.get(activity.id) || null
+        instructorRating: instructorRatingsMap.get(activity.id) || null,
+        howItWent: 'how_it_went' in extraData ? extraData.how_it_went || null : null
       };
+      
+      // Log all ratings for this activity
+      const hasStudioRating = studioRatingsMap.has(activity.id);
+      const hasClassRating = classRatingsMap.has(activity.id);
+      const hasInstructorRating = instructorRatingsMap.has(activity.id);
+      const activityType = 'activity_type' in extraData ? (extraData.activity_type as string) : activity.type;
+      
+      if (hasStudioRating || hasClassRating || hasInstructorRating) {
+        console.log(`📊 Activity ${activity.id} (${activityType}) ratings:`, {
+          studio: hasStudioRating ? studioRatingsMap.get(activity.id) : null,
+          class: hasClassRating ? classRatingsMap.get(activity.id) : null,
+          instructor: hasInstructorRating ? instructorRatingsMap.get(activity.id) : null,
+        });
+      }
+      
+      return result;
     }) || []);
 
     // Check if there are more pages

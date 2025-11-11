@@ -714,7 +714,8 @@ export async function GET(
           : undefined,
         routeData: 'route_data' in extraData ? extraData.route_data : undefined,
         distance: 'distance' in extraData ? extraData.distance : undefined,
-        duration: 'duration' in extraData ? extraData.duration : undefined
+        duration: 'duration' in extraData ? extraData.duration : undefined,
+        howItWent: 'how_it_went' in extraData ? extraData.how_it_went || null : null
       };
     }) || []);
 

@@ -262,12 +262,50 @@ export const collaborationApprovedNotificationHandler: NotificationHandler = {
   }
 };
 
+// Helper function to get activity name for notifications
+async function getActivityName(activityId: string): Promise<string> {
+  const { data: activity } = await supabase
+    .from('activity_feed')
+    .select('type, extra_data')
+    .eq('id', activityId)
+    .single();
+  
+  if (!activity) return 'post';
+  
+  const extraData = activity.extra_data as any || {};
+  const activityType = extraData.activity_type || activity.type;
+  
+  // Get class name or activity name
+  if (extraData.class_name && !['Custom', 'Custom Class', 'Activity'].includes(extraData.class_name)) {
+    return extraData.class_name;
+  }
+  
+  // For practice activities, use service name
+  if (activityType === 'practice' && extraData.service_name) {
+    return extraData.service_name;
+  }
+  
+  // Default to activity type or "post"
+  if (activityType === 'movement') {
+    return 'Class';
+  } else if (activityType === 'practice') {
+    return 'Service';
+  } else if (activityType === 'event') {
+    return 'Event';
+  } else if (activityType === 'treatment') {
+    return 'Treatment';
+  }
+  
+  return 'post';
+}
+
 // Like notification handler
 export const likeNotificationHandler: NotificationHandler = {
   type: 'like',
   
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for like notifications');
+    if (!relatedId) throw new Error('relatedId (activity_id) is required for like notifications');
     
     const { data: fromUser } = await supabase
       .from('users')
@@ -276,7 +314,8 @@ export const likeNotificationHandler: NotificationHandler = {
       .single();
     
     const likerName = fromUser?.full_name || fromUser?.username || 'Someone';
-    const message = `${likerName} liked your post`;
+    const activityName = await getActivityName(relatedId);
+    const message = `${likerName} liked your ${activityName} post.`;
     
     await supabase.from('notifications').insert({
       type: 'like',
@@ -302,6 +341,7 @@ export const commentNotificationHandler: NotificationHandler = {
   
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for comment notifications');
+    if (!relatedId) throw new Error('relatedId (activity_id) is required for comment notifications');
     
     const { data: fromUser } = await supabase
       .from('users')
@@ -310,7 +350,8 @@ export const commentNotificationHandler: NotificationHandler = {
       .single();
     
     const commenterName = fromUser?.full_name || fromUser?.username || 'Someone';
-    const message = `${commenterName} commented on your post`;
+    const activityName = await getActivityName(relatedId);
+    const message = `${commenterName} commented on your ${activityName} post. Reply?`;
     
     await supabase.from('notifications').insert({
       type: 'comment',
