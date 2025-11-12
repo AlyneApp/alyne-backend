@@ -624,7 +624,8 @@ export async function GET(
         like_count,
         comment_count,
         created_at,
-        users (
+        moderation_status,
+        users!activity_feed_user_id_fkey (
           id,
           username,
           full_name,
@@ -637,12 +638,16 @@ export async function GET(
         )
       `)
       .eq('user_id', targetUserId)
+      // Only show approved content (or pending if moderation hasn't run yet)
+      .or('moderation_status.is.null,moderation_status.eq.approved,moderation_status.eq.pending')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (activitiesError) {
+      console.error('❌ User Activity API - Error fetching activities:', activitiesError);
+      console.error('❌ Error details:', JSON.stringify(activitiesError, null, 2));
       return NextResponse.json(
-        { error: 'Failed to fetch activities' },
+        { error: 'Failed to fetch activities', details: activitiesError.message || String(activitiesError) },
         { status: 500 }
       );
     }

@@ -108,7 +108,19 @@ export async function GET(request: NextRequest) {
     }, [] as typeof ratings);
 
     // Get studio IDs from unique ratings (limit to top 5)
-    const studioIds = uniqueRatings.slice(0, 5).map(rating => rating.rated_entity_id);
+    // Filter out null/undefined values and ensure they're valid UUIDs
+    const studioIds = uniqueRatings
+      .slice(0, 5)
+      .map(rating => rating.rated_entity_id)
+      .filter((id): id is string => id !== null && id !== undefined && typeof id === 'string' && id.length > 0);
+
+    // If no valid studio IDs, return empty array
+    if (studioIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+      });
+    }
 
     // Fetch studio data separately
     const { data: studios, error: studiosError } = await authenticatedSupabase
@@ -123,13 +135,23 @@ export async function GET(request: NextRequest) {
 
     if (studiosError) {
       console.error('Error fetching studios:', studiosError);
+      console.error('Studio IDs attempted:', studioIds);
       return NextResponse.json(
-        { error: 'Failed to fetch studios' },
+        { error: 'Failed to fetch studios', details: studiosError.message },
         { status: 500 }
       );
     }
 
     console.log('Found studios:', studios);
+    
+    // If no studios found, return empty array (might happen if studios were deleted)
+    if (!studios || studios.length === 0) {
+      console.log('No studios found for IDs:', studioIds);
+      return NextResponse.json({
+        success: true,
+        data: [],
+      });
+    }
     
     // Debug: Log studio image data
     studios?.forEach(studio => {
@@ -143,21 +165,31 @@ export async function GET(request: NextRequest) {
     }, {} as { [key: string]: typeof studios[0] }) || {};
 
     // Transform the data to include studio information
-    const favorites = uniqueRatings.slice(0, 5).map(rating => {
-      const studio = studioMap[rating.rated_entity_id];
-      if (!studio) return null;
-      
-      return {
-        id: rating.rated_entity_id,
-        rating: rating.rating,
-        studio: {
-          ...studio,
-          image_urls: studio.image_urls || [], // Ensure image_urls is always an array
-          image_url: studio.image_urls?.[0] || null, // Let frontend handle default image
-        },
-        created_at: rating.created_at,
-      };
-    }).filter(item => item !== null) || [];
+    // Only include ratings where the studio still exists
+    const favorites = uniqueRatings
+      .slice(0, 5)
+      .map(rating => {
+        // Only process if rated_entity_id is valid
+        if (!rating.rated_entity_id) return null;
+        
+        const studio = studioMap[rating.rated_entity_id];
+        if (!studio) {
+          console.log(`Studio not found for rating entity ID: ${rating.rated_entity_id}`);
+          return null;
+        }
+        
+        return {
+          id: rating.rated_entity_id,
+          rating: rating.rating,
+          studio: {
+            ...studio,
+            image_urls: studio.image_urls || [], // Ensure image_urls is always an array
+            image_url: studio.image_urls?.[0] || null, // Let frontend handle default image
+          },
+          created_at: rating.created_at,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
 
     return NextResponse.json({
       success: true,

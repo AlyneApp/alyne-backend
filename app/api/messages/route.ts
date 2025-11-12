@@ -41,48 +41,6 @@ export async function POST(request: NextRequest) {
 
     console.log('Conversation found:', conversation);
 
-    // For direct conversations, check if this should be a pending request
-    if (conversation.conversation_type === 'direct' && (conversation.request_status === 'none' || !conversation.request_status)) {
-      // Get the other participant
-      const { data: participants } = await supabase
-        .from('conversation_participants')
-        .select('user_id')
-        .eq('conversation_id', conversationId);
-
-      if (participants && participants.length === 2) {
-        const otherUserId = participants.find(p => p.user_id !== user.id)?.user_id;
-        
-        if (otherUserId) {
-          // Check if the other user follows the current user
-          const { data: followData } = await supabase
-            .from('friends')
-            .select('id')
-            .eq('user_id', otherUserId)
-            .eq('friend_id', user.id)
-            .eq('approved', true)
-            .single();
-
-          // If the other user doesn't follow the current user, set as pending request
-          if (!followData) {
-            await supabase
-              .from('conversations')
-              .update({ request_status: 'pending' })
-              .eq('id', conversationId);
-            
-            console.log('Set conversation as pending request');
-          } else {
-            // If they follow each other, set as accepted
-            await supabase
-              .from('conversations')
-              .update({ request_status: 'accepted' })
-              .eq('id', conversationId);
-            
-            console.log('Set conversation as accepted');
-          }
-        }
-      }
-    }
-
     // Check if the current user is a participant
     const { data: participant, error: participantError } = await supabase
       .from('conversation_participants')
@@ -94,6 +52,71 @@ export async function POST(request: NextRequest) {
     if (participantError || !participant) {
       console.error('User not participant:', participantError);
       return NextResponse.json({ error: 'You are not part of this conversation' }, { status: 403 });
+    }
+
+    // For direct conversations, check if either user has blocked the other
+    if (conversation.conversation_type === 'direct') {
+      // Get the other participant
+      const { data: participants } = await supabase
+        .from('conversation_participants')
+        .select('user_id')
+        .eq('conversation_id', conversationId);
+
+      if (participants && participants.length === 2) {
+        const otherUserId = participants.find(p => p.user_id !== user.id)?.user_id;
+        
+        if (otherUserId) {
+          // Check if current user has blocked the other user
+          const { data: blockedByMe } = await supabase
+            .from('blocked_users')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('blocked_user_id', otherUserId)
+            .single();
+
+          // Check if other user has blocked the current user
+          const { data: blockedByOther } = await supabase
+            .from('blocked_users')
+            .select('id')
+            .eq('user_id', otherUserId)
+            .eq('blocked_user_id', user.id)
+            .single();
+
+          if (blockedByMe || blockedByOther) {
+            return NextResponse.json({ error: 'You cannot message this user' }, { status: 403 });
+          }
+
+          // Check if this should be a pending request
+          if (conversation.request_status === 'none' || !conversation.request_status) {
+            // Check if the other user follows the current user
+            const { data: followData } = await supabase
+              .from('friends')
+              .select('id')
+              .eq('user_id', otherUserId)
+              .eq('friend_id', user.id)
+              .eq('approved', true)
+              .single();
+
+            // If the other user doesn't follow the current user, set as pending request
+            if (!followData) {
+              await supabase
+                .from('conversations')
+                .update({ request_status: 'pending' })
+                .eq('id', conversationId);
+              
+              console.log('Set conversation as pending request');
+            } else {
+              // If they follow each other, set as accepted
+              await supabase
+                .from('conversations')
+                .update({ request_status: 'accepted' })
+                .eq('id', conversationId);
+              
+              console.log('Set conversation as accepted');
+            }
+          }
+        }
+      }
     }
 
     // Insert the message

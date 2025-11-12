@@ -9,45 +9,74 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
     }
 
-    // For claimed bookings, we might not have a valid original_booking_id
-    // Check if the booking exists in the bookings table
-    const { data: existingBooking } = await supabaseAdmin
-      .from('bookings')
-      .select('id')
-      .eq('id', bookingData.id)
-      .single();
+    // For manual bookings, the ID might be "manual-..." which is not a valid UUID
+    // Check if the booking ID is a valid UUID before checking the bookings table
+    const isManualBooking = bookingData.id && bookingData.id.startsWith('manual-');
+    let originalBookingId = null;
 
-    // If the booking doesn't exist, it might be a claimed booking
-    // In this case, we'll set original_booking_id to null and handle it as a standalone transfer
-    const originalBookingId = existingBooking ? bookingData.id : null;
+    if (!isManualBooking && bookingData.id) {
+      // Only check for existing booking if it's a valid UUID format
+      try {
+        const { data: existingBooking } = await supabaseAdmin
+          .from('bookings')
+          .select('id')
+          .eq('id', bookingData.id)
+          .single();
+
+        originalBookingId = existingBooking ? bookingData.id : null;
+      } catch (err) {
+        // If booking doesn't exist or ID is invalid, set to null
+        originalBookingId = null;
+      }
+    }
+
+    // Prepare the insert data
+    const insertData: any = {
+      transferrer_id: userId,
+      studio_name: bookingData.studioName,
+      class_name: bookingData.className,
+      instructor_name: bookingData.instructorName,
+      date: bookingData.date,
+      time: bookingData.time,
+      price: bookingData.price,
+      booking_type: bookingData.bookingType,
+      transfer_type: transferType, // 'member' or 'feed'
+      status: 'available', // 'available', 'claimed', 'completed', 'cancelled'
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Only include original_booking_id if it's not null (for real bookings)
+    if (originalBookingId) {
+      insertData.original_booking_id = originalBookingId;
+    }
+
+    // Only include optional fields if they have values
+    if (bookingData.studioImage) {
+      insertData.studio_image = bookingData.studioImage;
+    }
+    if (paymentMethod) {
+      insertData.payment_method = paymentMethod;
+    }
+    if (paymentDetails) {
+      insertData.payment_details = paymentDetails;
+    }
 
     // Create a new transfer record
     const { data: transfer, error } = await supabaseAdmin
       .from('booking_transfers')
-      .insert({
-        original_booking_id: originalBookingId,
-        transferrer_id: userId,
-        studio_name: bookingData.studioName,
-        class_name: bookingData.className,
-        instructor_name: bookingData.instructorName,
-        date: bookingData.date,
-        time: bookingData.time,
-        price: bookingData.price,
-        booking_type: bookingData.bookingType,
-        studio_image: bookingData.studioImage,
-        payment_method: paymentMethod,
-        payment_details: paymentDetails,
-        transfer_type: transferType, // 'member' or 'feed'
-        status: 'available', // 'available', 'claimed', 'completed', 'cancelled'
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+      .insert(insertData)
       .select()
       .single();
 
     if (error) {
       console.error('Error creating transfer:', error);
-      return NextResponse.json({ error: 'Failed to create transfer' }, { status: 500 });
+      console.error('Insert data:', JSON.stringify(insertData, null, 2));
+      return NextResponse.json({ 
+        error: 'Failed to create transfer',
+        details: error.message || String(error),
+        code: error.code
+      }, { status: 500 });
     }
 
     // If this is a feed transfer, create an activity feed entry

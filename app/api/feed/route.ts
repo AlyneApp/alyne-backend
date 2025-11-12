@@ -852,7 +852,35 @@ export async function GET(request: NextRequest) {
 
     console.log(`📊 Feed API - Querying activities for ${friendIdsArray.length} friend IDs:`, friendIdsArray);
     
-    const { data: activities, error: activitiesError } = await supabase
+    // Get list of blocked user IDs
+    const { data: blockedUsers } = await supabase
+      .from('blocked_users')
+      .select('blocked_user_id')
+      .eq('user_id', user.id);
+    
+    const blockedUserIds = blockedUsers?.map(b => b.blocked_user_id) || [];
+    
+    // Filter out blocked users from friend IDs
+    const filteredFriendIds = friendIdsArray.filter(friendId => !blockedUserIds.includes(friendId));
+    
+    if (filteredFriendIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+        pagination: {
+          page,
+          limit,
+          hasMore: false,
+          nextPage: null,
+          total: 0
+        }
+      });
+    }
+    
+    console.log(`📊 Feed API - After filtering blocked users: ${filteredFriendIds.length} friend IDs`);
+    
+    // Build query - filter out rejected content
+    let query = supabase
       .from('activity_feed')
       .select(`
         id,
@@ -864,7 +892,8 @@ export async function GET(request: NextRequest) {
         like_count,
         comment_count,
         created_at,
-        users (
+        moderation_status,
+        users!activity_feed_user_id_fkey (
           id,
           username,
           full_name,
@@ -876,7 +905,14 @@ export async function GET(request: NextRequest) {
           address
         )
       `)
-      .in('user_id', friendIdsArray)
+      .in('user_id', filteredFriendIds);
+    
+    // Only show approved content (or pending if moderation hasn't run yet)
+    // Exclude rejected content - allow null, approved, or pending
+    // Using .or() with PostgREST syntax: column.operator.value,column.operator.value
+    query = query.or('moderation_status.is.null,moderation_status.eq.approved,moderation_status.eq.pending');
+    
+    const { data: activities, error: activitiesError } = await query
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -888,8 +924,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (activitiesError) {
+      console.error('❌ Feed API - Error fetching activities:', activitiesError);
+      console.error('❌ Error details:', JSON.stringify(activitiesError, null, 2));
       return NextResponse.json(
-        { error: 'Failed to fetch activities' },
+        { error: 'Failed to fetch activities', details: activitiesError.message || String(activitiesError) },
         { status: 500 }
       );
     }

@@ -165,6 +165,25 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Other user not found' }, { status: 404 });
       }
 
+      // Check if either user has blocked the other
+      const { data: blockedByMe } = await supabase
+        .from('blocked_users')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('blocked_user_id', targetOtherUserId)
+        .single();
+
+      const { data: blockedByOther } = await supabase
+        .from('blocked_users')
+        .select('id')
+        .eq('user_id', targetOtherUserId)
+        .eq('blocked_user_id', user.id)
+        .single();
+
+      if (blockedByMe || blockedByOther) {
+        return NextResponse.json({ error: 'You cannot message this user' }, { status: 403 });
+      }
+
       // Check if conversation already exists
       const { data: existingConversation } = await supabase
         .from('conversations')

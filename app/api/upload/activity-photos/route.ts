@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { moderateImage } from '@/lib/moderation/image';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -57,6 +58,32 @@ export async function POST(request: NextRequest) {
           { error: 'File size must be less than 10MB' },
           { status: 400 }
         );
+      }
+
+      // Moderate image using NSFW.js (free)
+      try {
+        const moderationResult = await moderateImage(buffer);
+        
+        if (moderationResult.flagged) {
+          console.log('🚫 Image flagged by moderation:', {
+            reason: moderationResult.reason,
+            scores: moderationResult.scores
+          });
+          
+          return NextResponse.json(
+            { 
+              error: 'Image violates content policy',
+              flagged: true,
+              reason: moderationResult.reason,
+              details: moderationResult.scores
+            },
+            { status: 400 }
+          );
+        }
+      } catch (moderationError) {
+        console.error('Error moderating image (allowing upload):', moderationError);
+        // Fail open - if moderation fails, allow upload
+        // You can change this to fail closed if preferred
       }
       
       console.log('Successfully processed base64 image:', {
