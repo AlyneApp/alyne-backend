@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-// Image moderation is dynamically imported to avoid build-time issues
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -60,32 +59,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Moderate image using NSFW.js (free) - dynamically imported
-      try {
-        const { moderateImage } = await import('@/lib/moderation/image');
-        const moderationResult = await moderateImage(buffer);
-        
-        if (moderationResult.flagged) {
-          console.log('🚫 Image flagged by moderation:', {
-            reason: moderationResult.reason,
-            scores: moderationResult.scores
-          });
-          
-          return NextResponse.json(
-            { 
-              error: 'Image violates content policy',
-              flagged: true,
-              reason: moderationResult.reason,
-              details: moderationResult.scores
-            },
-            { status: 400 }
-          );
-        }
-      } catch (moderationError) {
-        console.error('Error moderating image (allowing upload):', moderationError);
-        // Fail open - if moderation fails, allow upload
-        // You can change this to fail closed if preferred
-      }
+      // Image moderation removed - uploads are allowed without moderation
       
       console.log('Successfully processed base64 image:', {
         size: buffer.length,

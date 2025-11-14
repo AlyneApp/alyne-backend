@@ -123,17 +123,6 @@ const nextConfig: NextConfig = {
       })
     );
     
-    // Exclude tfjs-node from being bundled (only use it server-side)
-    if (!isServer) {
-      config.externals = config.externals || [];
-      if (typeof config.externals === 'object' && !Array.isArray(config.externals)) {
-        config.externals = [config.externals];
-      }
-      config.externals.push({
-        '@tensorflow/tfjs-node': 'commonjs @tensorflow/tfjs-node',
-        'sharp': 'commonjs sharp',
-      });
-    }
     
     return config;
   },

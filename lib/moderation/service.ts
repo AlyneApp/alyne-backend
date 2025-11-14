@@ -1,6 +1,6 @@
 // Moderation service - automatically moderates activities after creation
 import { supabaseAdmin } from '@/lib/supabase';
-import { moderateActivity, moderateImageUrl } from './index';
+import { moderateActivity } from './index';
 
 /**
  * Automatically moderate an activity feed entry after it's created
@@ -82,13 +82,10 @@ export async function moderateActivityFeedEntry(activityId: string): Promise<voi
       return;
     }
 
-    // Moderate the activity (full check)
+    // Moderate the activity (full check - text only, no image moderation)
     let moderationResult;
     try {
-      moderationResult = await moderateActivity({
-        ...activityData,
-        imageUrls,
-      });
+      moderationResult = await moderateActivity(activityData);
     } catch (modError) {
       console.error('Error in moderateActivity:', modError);
       // If moderation fails, use keyword result (already checked above)
@@ -184,31 +181,4 @@ async function addToModerationQueue(
   }
 }
 
-/**
- * Moderate images from URLs (for activities with photos)
- */
-export async function moderateActivityImages(imageUrls: string[]): Promise<{
-  flagged: boolean;
-  flaggedImages: number;
-}> {
-  if (!imageUrls || imageUrls.length === 0) {
-    return { flagged: false, flaggedImages: 0 };
-  }
-
-  try {
-    const results = await Promise.all(
-      imageUrls.map((url) => moderateImageUrl(url))
-    );
-
-    const flaggedImages = results.filter((r) => r.flagged);
-    
-    return {
-      flagged: flaggedImages.length > 0,
-      flaggedImages: flaggedImages.length,
-    };
-  } catch (error) {
-    console.error('Error moderating activity images:', error);
-    return { flagged: false, flaggedImages: 0 };
-  }
-}
 

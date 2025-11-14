@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { moderateActivity, moderateImageUrl } from '@/lib/moderation';
+import { moderateActivity } from '@/lib/moderation';
 
 /**
  * POST /api/moderation/check
@@ -15,38 +15,16 @@ export async function POST(request: NextRequest) {
       how_it_went,
       instructor_name,
       studio_name,
-      imageUrls, // URLs of images to moderate
     } = body;
 
-    // Moderate text content
+    // Moderate text content (image moderation removed)
     const moderationResult = await moderateActivity({
       activity_name,
       class_name,
       how_it_went,
       instructor_name,
       studio_name,
-      imageUrls,
     });
-
-    // If images are provided as URLs, moderate them
-    if (imageUrls && Array.isArray(imageUrls) && imageUrls.length > 0) {
-      const imageResults = await Promise.all(
-        imageUrls.map((url: string) => moderateImageUrl(url))
-      );
-
-      const flaggedImages = imageResults.filter((img) => img.flagged);
-      if (flaggedImages.length > 0) {
-        moderationResult.flagged = true;
-        moderationResult.moderationScore = Math.max(
-          moderationResult.moderationScore,
-          0.8
-        );
-        moderationResult.reasons.push(
-          `NSFW image detected (${flaggedImages.length} image(s))`
-        );
-        moderationResult.details.imageModeration = imageResults;
-      }
-    }
 
     return NextResponse.json({
       success: true,

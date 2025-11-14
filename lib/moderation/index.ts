@@ -1,7 +1,6 @@
 // Main moderation service - combines all moderation methods
 import { checkActivityContent } from './keywords';
 import { moderateText } from './text';
-// Image moderation is optional - only import when needed to avoid build issues
 
 export interface ModerationResult {
   flagged: boolean;
@@ -20,17 +19,11 @@ export interface ModerationResult {
       scores?: Record<string, number>;
       categories?: string[];
     };
-    imageModeration?: Array<{
-      flagged: boolean;
-      isNSFW: boolean;
-      scores: any;
-      reason?: string;
-    }>;
   };
 }
 
 /**
- * Moderate activity content (text + images)
+ * Moderate activity content (text only)
  */
 export async function moderateActivity(data: {
   // Text content
@@ -39,9 +32,6 @@ export async function moderateActivity(data: {
   how_it_went?: string;
   instructor_name?: string;
   studio_name?: string;
-  // Images (as buffers or URLs)
-  images?: Buffer[];
-  imageUrls?: string[];
 }): Promise<ModerationResult> {
   const reasons: string[] = [];
   let moderationScore = 0;
@@ -89,44 +79,6 @@ export async function moderateActivity(data: {
     }
   }
 
-  // 3. Image moderation (NSFW.js) - only if images are provided as buffers
-  if (data.images && data.images.length > 0) {
-    try {
-      // Dynamically import image moderation to avoid build-time issues
-      const { moderateImages } = await import('./image');
-      const imageResults = await moderateImages(data.images);
-      details.imageModeration = imageResults;
-
-      const flaggedImages = imageResults.filter((img) => img.flagged);
-      if (flaggedImages.length > 0) {
-        reasons.push(`NSFW image detected (${flaggedImages.length} image(s))`);
-        moderationScore += 0.8; // Very high weight for NSFW images
-      }
-    } catch (error) {
-      console.error('Image moderation error (non-blocking):', error);
-      // Don't block if image moderation fails - keyword and text checks are more important
-    }
-  }
-
-  // 4. Image URL moderation (if imageUrls provided instead of buffers)
-  if (data.imageUrls && data.imageUrls.length > 0) {
-    try {
-      // Import moderateImageUrl from this file (it's defined below)
-      const imageResults = await Promise.all(
-        data.imageUrls.map((url) => moderateImageUrl(url))
-      );
-      details.imageModeration = imageResults;
-
-      const flaggedImages = imageResults.filter((img) => img.flagged);
-      if (flaggedImages.length > 0) {
-        reasons.push(`NSFW image detected (${flaggedImages.length} image(s))`);
-        moderationScore += 0.8; // Very high weight for NSFW images
-      }
-    } catch (error) {
-      console.error('Image URL moderation error (non-blocking):', error);
-      // Don't block if image moderation fails
-    }
-  }
 
   // Determine final status
   const flagged = moderationScore > 0.5; // Threshold: 50% confidence
@@ -155,44 +107,4 @@ export async function moderateActivity(data: {
   };
 }
 
-/**
- * Moderate a single image URL (downloads and moderates)
- */
-export async function moderateImageUrl(imageUrl: string): Promise<{
-  flagged: boolean;
-  isNSFW: boolean;
-  scores: any;
-  reason?: string;
-}> {
-  try {
-    // Dynamically import image moderation to avoid build-time issues
-    const { moderateImage } = await import('./image');
-    
-    // Download image
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to download image: ${response.statusText}`);
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Moderate image
-    return await moderateImage(buffer);
-  } catch (error) {
-    console.error('Error moderating image URL:', error);
-    // Fail open - don't block if moderation fails
-    return {
-      flagged: false,
-      isNSFW: false,
-      scores: {
-        porn: 0,
-        sexy: 0,
-        hentai: 0,
-        drawing: 0,
-        neutral: 1,
-      },
-    };
-  }
-}
 
