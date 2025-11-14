@@ -3,16 +3,23 @@
 // This file should only be imported in API routes (server-side)
 
 import * as nsfwjs from 'nsfwjs';
-import sharp from 'sharp';
 
-// Dynamic import for tfjs-node to avoid bundling issues
+// Dynamic imports to avoid bundling issues and Vercel build problems
 let tf: typeof import('@tensorflow/tfjs-node') | null = null;
+let sharpModule: typeof import('sharp') | null = null;
 
 async function getTensorFlow() {
   if (!tf) {
     tf = await import('@tensorflow/tfjs-node');
   }
   return tf;
+}
+
+async function getSharp() {
+  if (!sharpModule) {
+    sharpModule = await import('sharp');
+  }
+  return sharpModule.default;
 }
 
 let model: nsfwjs.NSFWJS | null = null;
@@ -55,8 +62,11 @@ export async function moderateImage(
     // Load model if not already loaded
     const nsfwModel = await loadModel();
 
+    // Dynamically load Sharp to avoid build-time issues on Vercel
+    const sharpInstance = await getSharp();
+
     // Resize image to 299x299 (required by NSFW.js model)
-    const resizedImage = await sharp(imageBuffer)
+    const resizedImage = await sharpInstance(imageBuffer)
       .resize(299, 299, { fit: 'cover' })
       .jpeg()
       .toBuffer();
