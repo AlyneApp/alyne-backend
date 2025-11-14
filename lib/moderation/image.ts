@@ -8,7 +8,6 @@ import * as nsfwjs from 'nsfwjs';
 // Sharp is optional - if it fails to load, image moderation will be skipped
 let tf: typeof import('@tensorflow/tfjs-node') | null = null;
 let sharpModule: any = null;
-let sharpAvailable = false;
 
 async function getTensorFlow() {
   if (!tf) {
@@ -26,11 +25,9 @@ async function getSharp() {
     // Try to load Sharp dynamically
     const sharpImport = await import('sharp');
     sharpModule = sharpImport.default;
-    sharpAvailable = true;
     return sharpModule;
   } catch (error) {
     console.warn('Sharp not available - image moderation will be skipped:', error);
-    sharpAvailable = false;
     sharpModule = null;
     return null;
   }
