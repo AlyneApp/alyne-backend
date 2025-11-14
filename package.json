@@ -10,7 +10,7 @@
     "type-check": "tsc --noEmit",
     "check": "yarn lint && yarn type-check && yarn build && echo '✅ All checks passed!'",
     "precommit": "yarn check",
-    "scrape-luma": "yarn tsx scripts/scrape-luma-events.ts",
+    "scrape-luma": "yarn tsx scripts/scrape-luma-events.ts"
   },
   "dependencies": {
     "@sparticuz/chromium": "^138.0.2",
