@@ -13,7 +13,7 @@ const PUBLIC_ROUTES = [
 ];
 
 // CORS headers helper
-function getCorsHeaders(origin: string | null) {
+function getCorsHeaders(origin: string | null): Record<string, string> {
   // Allow requests from any origin (mobile apps, web, etc.)
   // Mobile apps may not send an origin header, so we default to allowing all
   // In production, you might want to restrict this to specific domains
