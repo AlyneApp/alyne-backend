@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { moderateImage } from '@/lib/moderation/image';
+// Image moderation is dynamically imported to avoid build-time issues
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -60,8 +60,9 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Moderate image using NSFW.js (free)
+      // Moderate image using NSFW.js (free) - dynamically imported
       try {
+        const { moderateImage } = await import('@/lib/moderation/image');
         const moderationResult = await moderateImage(buffer);
         
         if (moderationResult.flagged) {

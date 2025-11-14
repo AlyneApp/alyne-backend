@@ -1,7 +1,7 @@
 // Main moderation service - combines all moderation methods
 import { checkActivityContent } from './keywords';
 import { moderateText } from './text';
-import { moderateImage, moderateImages } from './image';
+// Image moderation is optional - only import when needed to avoid build issues
 
 export interface ModerationResult {
   flagged: boolean;
@@ -92,6 +92,8 @@ export async function moderateActivity(data: {
   // 3. Image moderation (NSFW.js) - only if images are provided as buffers
   if (data.images && data.images.length > 0) {
     try {
+      // Dynamically import image moderation to avoid build-time issues
+      const { moderateImages } = await import('./image');
       const imageResults = await moderateImages(data.images);
       details.imageModeration = imageResults;
 
@@ -163,6 +165,9 @@ export async function moderateImageUrl(imageUrl: string): Promise<{
   reason?: string;
 }> {
   try {
+    // Dynamically import image moderation to avoid build-time issues
+    const { moderateImage } = await import('./image');
+    
     // Download image
     const response = await fetch(imageUrl);
     if (!response.ok) {

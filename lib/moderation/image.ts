@@ -3,16 +3,37 @@
 // This file should only be imported in API routes (server-side)
 
 import * as nsfwjs from 'nsfwjs';
-import sharp from 'sharp';
 
-// Dynamic import for tfjs-node to avoid bundling issues
+// Dynamic imports to avoid build-time issues on Vercel
+// Sharp is optional - if it fails to load, image moderation will be skipped
 let tf: typeof import('@tensorflow/tfjs-node') | null = null;
+let sharpModule: any = null;
+let sharpAvailable = false;
 
 async function getTensorFlow() {
   if (!tf) {
     tf = await import('@tensorflow/tfjs-node');
   }
   return tf;
+}
+
+async function getSharp() {
+  if (sharpModule !== null) {
+    return sharpModule;
+  }
+  
+  try {
+    // Try to load Sharp dynamically
+    const sharpImport = await import('sharp');
+    sharpModule = sharpImport.default;
+    sharpAvailable = true;
+    return sharpModule;
+  } catch (error) {
+    console.warn('Sharp not available - image moderation will be skipped:', error);
+    sharpAvailable = false;
+    sharpModule = null;
+    return null;
+  }
 }
 
 let model: nsfwjs.NSFWJS | null = null;
@@ -52,6 +73,24 @@ export async function moderateImage(
   reason?: string;
 }> {
   try {
+    // Check if Sharp is available
+    const sharp = await getSharp();
+    if (!sharp) {
+      // Sharp not available - skip image moderation
+      console.warn('Sharp not available - skipping image moderation');
+      return {
+        isNSFW: false,
+        scores: {
+          porn: 0,
+          sexy: 0,
+          hentai: 0,
+          drawing: 0,
+          neutral: 1,
+        },
+        flagged: false,
+      };
+    }
+
     // Load model if not already loaded
     const nsfwModel = await loadModel();
 
