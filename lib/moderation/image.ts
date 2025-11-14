@@ -1,9 +1,19 @@
 // Free image moderation using NSFW.js
 // Note: NSFW.js requires @tensorflow/tfjs-node for server-side use
+// This file should only be imported in API routes (server-side)
 
 import * as nsfwjs from 'nsfwjs';
-import * as tf from '@tensorflow/tfjs-node';
 import sharp from 'sharp';
+
+// Dynamic import for tfjs-node to avoid bundling issues
+let tf: typeof import('@tensorflow/tfjs-node') | null = null;
+
+async function getTensorFlow() {
+  if (!tf) {
+    tf = await import('@tensorflow/tfjs-node');
+  }
+  return tf;
+}
 
 let model: nsfwjs.NSFWJS | null = null;
 
@@ -13,6 +23,8 @@ let model: nsfwjs.NSFWJS | null = null;
 async function loadModel(): Promise<nsfwjs.NSFWJS> {
   if (!model) {
     console.log('Loading NSFW.js model...');
+    // Ensure TensorFlow.js Node backend is loaded
+    await getTensorFlow();
     // Load model with TensorFlow.js Node backend
     // NSFW.js will automatically use the Node backend when tfjs-node is imported
     model = await nsfwjs.load('https://nsfwjs.com/model/', { size: 299 });
@@ -49,8 +61,11 @@ export async function moderateImage(
       .jpeg()
       .toBuffer();
 
+    // Get TensorFlow.js Node backend
+    const tfNode = await getTensorFlow();
+    
     // Convert buffer to tensor
-    const image = tf.node.decodeImage(resizedImage, 3) as tf.Tensor3D;
+    const image = tfNode.node.decodeImage(resizedImage, 3) as any;
 
     // Classify image
     const predictions = await nsfwModel.classify(image);

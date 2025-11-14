@@ -102,8 +102,6 @@ export function moderateTextSimple(text: string): {
     return { flagged: false };
   }
 
-  const lowerText = text.toLowerCase();
-
   // Check for excessive caps (potential spam)
   const capsRatio = (text.match(/[A-Z]/g) || []).length / text.length;
   if (capsRatio > 0.7 && text.length > 10) {

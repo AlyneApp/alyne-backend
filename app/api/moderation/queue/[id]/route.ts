@@ -27,7 +27,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { action, status } = body; // action: 'approve' | 'reject' | 'dismiss'
+    const { action } = body; // action: 'approve' | 'reject' | 'dismiss'
 
     if (!action || !['approve', 'reject', 'dismiss'].includes(action)) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

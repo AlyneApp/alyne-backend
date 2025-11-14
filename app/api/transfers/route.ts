@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
           .single();
 
         originalBookingId = existingBooking ? bookingData.id : null;
-      } catch (err) {
+      } catch {
         // If booking doesn't exist or ID is invalid, set to null
         originalBookingId = null;
       }

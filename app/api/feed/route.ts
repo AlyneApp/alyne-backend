@@ -59,6 +59,19 @@ function getStudioName(activity: ActivityFeedItem): string {
   return activity.studios?.name || (activity.extra_data as any)?.studio_name || 'Unknown Studio';
 }
 
+// Helper function to get special phrasing for running, walking, and cycling
+function getSpecialActivityPhrase(activityName: string): { verb: string; activity: string } | null {
+  const normalizedName = activityName.toLowerCase().trim();
+  if (normalizedName === 'running') {
+    return { verb: 'went for a', activity: 'run' };
+  } else if (normalizedName === 'walking') {
+    return { verb: 'went for a', activity: 'walk' };
+  } else if (normalizedName === 'cycling') {
+    return { verb: 'went for a', activity: 'bike ride' };
+  }
+  return null;
+}
+
 async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?: string): Promise<FormattedActivity> {
   const username = activity.users?.full_name || activity.users?.username || 'Someone';
   const metadata = activity.extra_data || {};
@@ -277,6 +290,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
       if ('activity_name' in metadata || 'activity_type' in metadata) {
         const activityName = String((metadata as Record<string, unknown>).activity_name || (metadata as Record<string, unknown>).activity_type || 'a workout');
         const classMetadata = metadata as any;
+        const specialPhrase = getSpecialActivityPhrase(activityName);
         
         if (activity.collaboration_partners && activity.collaboration_partners.length > 0) {
           const { data: partnerUsers } = await supabase
@@ -301,7 +315,20 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           if (partnerNames.length === 1) {
             if (isOwnActivity) {
               // With Another User (You + Others)
-              if (isPractice) {
+              if (specialPhrase) {
+                // Special phrase for running/walking/cycling: "went for a run/walk/bike ride"
+                return {
+                  messageParts: [
+                    { text: 'You and ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]} `, bold: true, clickable: true },
+                    { text: `${specialPhrase.verb} `, bold: false, clickable: false },
+                    { text: `${specialPhrase.activity}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (isPractice) {
                 // Practice format: "did a <class_name> <activityName> at <studio> by <instructor>"
                 // Partner is already included in "You and <partner>"
                 return {
@@ -341,7 +368,19 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               }
             } else {
               // With Another User (Others Only)
-              if (isPractice) {
+              if (specialPhrase) {
+                // Special phrase for running/walking/cycling: "went for a run/walk/bike ride"
+                return {
+                  messageParts: [
+                    { text: `${username} and ${partnerNames[0]} `, bold: false, clickable: false },
+                    { text: `${specialPhrase.verb} `, bold: false, clickable: false },
+                    { text: `${specialPhrase.activity}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (isPractice) {
                 // Practice format: "did a <class_name> <activityName> at <studio> by <instructor> with <partner>"
                 return {
                   messageParts: [
@@ -378,7 +417,19 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           } else if (partnerNames.length === 2) {
             if (isOwnActivity) {
               // Group Activity (You in Group) - 2 partners
-              if (isPractice) {
+              if (specialPhrase) {
+                return {
+                  messageParts: [
+                    { text: 'You, ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]}, and ${partnerNames[1]} `, bold: true, clickable: true },
+                    { text: `${specialPhrase.verb} `, bold: false, clickable: false },
+                    { text: `${specialPhrase.activity}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (isPractice) {
                 return {
                   messageParts: [
                     { text: 'You did a ', bold: false, clickable: false },
@@ -416,7 +467,18 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               }
             } else {
               // Group Activity (Others Only) - 2 partners
-              if (isPractice) {
+              if (specialPhrase) {
+                return {
+                  messageParts: [
+                    { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} `, bold: false, clickable: false },
+                    { text: `${specialPhrase.verb} `, bold: false, clickable: false },
+                    { text: `${specialPhrase.activity}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (isPractice) {
                 return {
                   messageParts: [
                     { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} did a `, bold: false, clickable: false },
@@ -454,7 +516,19 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               // Group Activity (You in Group) - 3+ partners
               const firstTwo = partnerNames.slice(0, 2).join(', ');
               const remaining = partnerNames.length - 2;
-              if (isPractice) {
+              if (specialPhrase) {
+                return {
+                  messageParts: [
+                    { text: 'You, ', bold: false, clickable: false },
+                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} `, bold: true, clickable: true },
+                    { text: `${specialPhrase.verb} `, bold: false, clickable: false },
+                    { text: `${specialPhrase.activity}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (isPractice) {
                 return {
                   messageParts: [
                     { text: 'You did a ', bold: false, clickable: false },
@@ -494,7 +568,18 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               // Group Activity (Others Only) - 3+ partners
               const firstTwo = partnerNames.slice(0, 2).join(', ');
               const remaining = partnerNames.length - 2;
-              if (isPractice) {
+              if (specialPhrase) {
+                return {
+                  messageParts: [
+                    { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} `, bold: false, clickable: false },
+                    { text: `${specialPhrase.verb} `, bold: false, clickable: false },
+                    { text: `${specialPhrase.activity}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (isPractice) {
                 return {
                   messageParts: [
                     { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did a `, bold: false, clickable: false },
@@ -541,7 +626,19 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           
           if (isOwnActivity) {
             // Solo Activity (You)
-            if (isPractice) {
+            if (specialPhrase) {
+              // Special phrase for running/walking/cycling: "went for a run/walk/bike ride"
+              return {
+                messageParts: [
+                  { text: 'You ', bold: false, clickable: false },
+                  { text: `${specialPhrase.verb} `, bold: false, clickable: false },
+                  { text: `${specialPhrase.activity}`, bold: true, clickable: true },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            } else if (isPractice) {
               return {
                 messageParts: [
                   { text: 'You did a ', bold: false, clickable: false },
@@ -575,7 +672,19 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
             }
           } else {
             // Solo Activity (Others)
-            if (isPractice) {
+            if (specialPhrase) {
+              // Special phrase for running/walking/cycling: "went for a run/walk/bike ride"
+              return {
+                messageParts: [
+                  { text: `${username} `, bold: false, clickable: false },
+                  { text: `${specialPhrase.verb} `, bold: false, clickable: false },
+                  { text: `${specialPhrase.activity}`, bold: true, clickable: true },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            } else if (isPractice) {
               return {
                 messageParts: [
                   { text: `${username} did a `, bold: false, clickable: false },

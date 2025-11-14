@@ -5,6 +5,10 @@
 /.pnp
 .pnp.*
 
+# package manager lock files (using yarn)
+package-lock.json
+yarn-error.log
+
 # testing
 /coverage
 
