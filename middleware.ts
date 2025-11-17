@@ -85,6 +85,14 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user }, error } = await supabaseEdge.auth.getUser(token);
   if (error || !user) {
+    // Log the error for debugging
+    console.error('Authentication error:', {
+      error: error?.message || 'Unknown error',
+      hasToken: !!token,
+      tokenPreview: token ? `${token.substring(0, 20)}...` : 'none',
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'Missing',
+      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Set' : 'Missing',
+    });
     const response = NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     // Add CORS headers even to error responses
     Object.entries(getCorsHeaders(origin)).forEach(([key, value]) => {
