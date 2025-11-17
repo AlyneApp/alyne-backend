@@ -14,6 +14,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing required Supabase environment variables');
 }
 
+// Log initialization (only once, not on every import)
+if (!(global as any).__SUPABASE_EDGE_INIT_LOGGED) {
+  console.log('Supabase Edge Client initialized:', {
+    url: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'Missing',
+    key: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'Missing',
+  });
+  (global as any).__SUPABASE_EDGE_INIT_LOGGED = true;
+}
+
 export const supabaseEdge = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: false,

@@ -83,18 +83,40 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  const { data: { user }, error } = await supabaseEdge.auth.getUser(token);
-  if (error || !user) {
-    // Log the error for debugging
-    console.error('Authentication error:', {
-      error: error?.message || 'Unknown error',
+  let user;
+  try {
+    const { data: { user: authUser }, error } = await supabaseEdge.auth.getUser(token);
+    if (error || !authUser) {
+      // Log the error for debugging
+      console.error('Authentication error:', {
+        error: error?.message || 'Unknown error',
+        errorCode: error?.status || 'N/A',
+        errorName: error?.name || 'N/A',
+        hasToken: !!token,
+        tokenLength: token?.length || 0,
+        tokenPreview: token ? `${token.substring(0, 20)}...` : 'none',
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'Missing',
+        supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Set' : 'Missing',
+        path: path,
+      });
+      const response = NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
+      // Add CORS headers even to error responses
+      Object.entries(getCorsHeaders(origin)).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+      return response;
+    }
+    user = authUser;
+  } catch (authException) {
+    // Catch any exceptions during authentication
+    console.error('Authentication exception:', {
+      error: authException instanceof Error ? authException.message : String(authException),
+      stack: authException instanceof Error ? authException.stack : undefined,
       hasToken: !!token,
-      tokenPreview: token ? `${token.substring(0, 20)}...` : 'none',
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'Missing',
       supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Set' : 'Missing',
     });
-    const response = NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
-    // Add CORS headers even to error responses
+    const response = NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
     Object.entries(getCorsHeaders(origin)).forEach(([key, value]) => {
       response.headers.set(key, value);
     });
