@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     // Check if admin client is available
     // admin is guaranteed by the earlier guard
 
-    // Update the user's is_instructor field to true
+    // Update the user's is_instructor field to true (idempotent)
     const { error: updateUserError } = await admin
       .from('users')
       .update({ is_instructor: true })
@@ -74,37 +74,75 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create instructor_details entry
-    const { data: instructorDetails, error: createDetailsError } = await admin
+    // Check if instructor_details already exists
+    const { data: existingDetails, error: fetchDetailsError } = await admin
       .from('instructor_details')
-      .insert([{
-        user_id: user.id,
-        specialty_descriptor: specialtyDescriptor,
-        studios: studios,
-        bio: bio || null,
-        certifications: certifications || null,
-        contact_info: contactInfo || null,
-        instagram: instagram || null,
-        tiktok: tiktok || null,
-        youtube: youtube || null,
-        website: website || null,
-      }])
-      .select()
-      .single();
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-    if (createDetailsError) {
-      console.error('Error creating instructor details:', createDetailsError);
-      
-      // Rollback user update if instructor_details creation fails
-      await admin
-        .from('users')
-        .update({ is_instructor: false })
-        .eq('id', user.id);
-
+    if (fetchDetailsError) {
+      console.error('Error fetching existing instructor details:', fetchDetailsError);
       return NextResponse.json(
-        { error: 'Failed to create instructor profile' },
+        { error: 'Failed to verify instructor profile' },
         { status: 500 }
       );
+    }
+
+    let instructorDetails;
+    if (existingDetails) {
+      const { data: updatedDetails, error: updateDetailsError } = await admin
+        .from('instructor_details')
+        .update({
+          specialty_descriptor: specialtyDescriptor,
+          studios: studios,
+          bio: bio || null,
+          certifications: certifications || null,
+          contact_info: contactInfo || null,
+          instagram: instagram || null,
+          tiktok: tiktok || null,
+          youtube: youtube || null,
+          website: website || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingDetails.id)
+        .select()
+        .single();
+
+      if (updateDetailsError) {
+        console.error('Error updating instructor details:', updateDetailsError);
+        return NextResponse.json(
+          { error: 'Failed to update instructor profile' },
+          { status: 500 }
+        );
+      }
+      instructorDetails = updatedDetails;
+    } else {
+      const { data: newDetails, error: createDetailsError } = await admin
+        .from('instructor_details')
+        .insert([{
+          user_id: user.id,
+          specialty_descriptor: specialtyDescriptor,
+          studios: studios,
+          bio: bio || null,
+          certifications: certifications || null,
+          contact_info: contactInfo || null,
+          instagram: instagram || null,
+          tiktok: tiktok || null,
+          youtube: youtube || null,
+          website: website || null,
+        }])
+        .select()
+        .single();
+
+      if (createDetailsError) {
+        console.error('Error creating instructor details:', createDetailsError);
+        return NextResponse.json(
+          { error: 'Failed to create instructor profile' },
+          { status: 500 }
+        );
+      }
+      instructorDetails = newDetails;
     }
 
     return NextResponse.json({
