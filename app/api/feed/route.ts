@@ -100,7 +100,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 messageParts: [
                   { text: 'You and ', bold: false, clickable: false },
                   { text: `${partnerNames[0]} `, bold: true, clickable: true },
-                  { text: 'took a ', bold: false, clickable: false },
+                  { text: 'did a ', bold: false, clickable: false },
                   { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'class at ', bold: false, clickable: false },
                   { text: `${getStudioName(activity)}`, bold: true, clickable: true },
@@ -123,7 +123,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   { text: `${username} `, bold: true, clickable: true },
                   { text: 'and ', bold: false, clickable: false },
                   { text: `${partnerNames[0]} `, bold: true, clickable: true },
-                  { text: 'took a ', bold: false, clickable: false },
+                  { text: 'did a ', bold: false, clickable: false },
                   { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'class at ', bold: false, clickable: false },
                   { text: `${getStudioName(activity)}`, bold: true, clickable: true },
@@ -145,7 +145,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               // Group Class Attendance (You in Group) - 2 partners
               return {
                 messageParts: [
-                  { text: 'You took ', bold: false, clickable: false },
+                  { text: 'You did ', bold: false, clickable: false },
                   { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'at ', bold: false, clickable: false },
                   { text: `${getStudioName(activity)} `, bold: true, clickable: true },
@@ -171,7 +171,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   { text: `${partnerNames[0]}, `, bold: true, clickable: true },
                   { text: 'and ', bold: false, clickable: false },
                   { text: `${partnerNames[1]} `, bold: true, clickable: true },
-                  { text: 'took a ', bold: false, clickable: false },
+                  { text: 'did a ', bold: false, clickable: false },
                   { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'class at ', bold: false, clickable: false },
                   { text: `${getStudioName(activity)}`, bold: true, clickable: true },
@@ -195,7 +195,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               const remaining = partnerNames.length - 2;
               return {
                 messageParts: [
-                  { text: 'You took ', bold: false, clickable: false },
+                  { text: 'You did ', bold: false, clickable: false },
                   { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'at ', bold: false, clickable: false },
                   { text: `${getStudioName(activity)} `, bold: true, clickable: true },
@@ -223,7 +223,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   { text: `${firstTwo}, `, bold: true, clickable: true },
                   { text: 'and ', bold: false, clickable: false },
                   { text: `${remaining} other${remaining > 1 ? 's' : ''} `, bold: true, clickable: true },
-                  { text: 'took a ', bold: false, clickable: false },
+                  { text: 'did a ', bold: false, clickable: false },
                   { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                   { text: 'class at ', bold: false, clickable: false },
                   { text: `${getStudioName(activity)}`, bold: true, clickable: true },
@@ -246,7 +246,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
             // Solo Attendance (You)
             return {
               messageParts: [
-                { text: 'You took a ', bold: false, clickable: false },
+                { text: 'You did a ', bold: false, clickable: false },
                 { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                 { text: 'class at ', bold: false, clickable: false },
                 { text: `${getStudioName(activity)}`, bold: true, clickable: true },
@@ -267,7 +267,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
             return {
               messageParts: [
                 { text: `${username} `, bold: true, clickable: true },
-                { text: 'took a ', bold: false, clickable: false },
+                { text: 'did a ', bold: false, clickable: false },
                 { text: `${classMetadata.class_name} `, bold: false, clickable: false },
                 { text: 'class at ', bold: false, clickable: false },
                 { text: `${getStudioName(activity)}`, bold: true, clickable: true },
