@@ -307,6 +307,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           let activityTerm = 'workout';
           const isPractice = activityType === 'practice';
           const isTreatment = activityType === 'treatment';
+          const isEvent = activityType === 'event';
           
           // Only use "workout" for movement activities, otherwise just the activity name
           if (activityType !== 'movement') {
@@ -316,7 +317,20 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           if (partnerNames.length === 1) {
             if (isOwnActivity) {
               // With Another User (You + Others)
-              if (specialPhrase) {
+              if (isEvent) {
+                // Event format: "You and [Partner] attended [Event Name]"
+                return {
+                  messageParts: [
+                    { text: 'You and ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]} `, bold: true, clickable: true },
+                    { text: 'attended ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (specialPhrase) {
                 // Special phrase for running/walking/cycling: "went for a run/walk/bike ride"
                 return {
                   messageParts: [
@@ -331,12 +345,14 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 };
               } else if (isTreatment) {
                 // Treatment format: "You did a [Treatment Name] at [Location] with [User(s)]"
+                const location = getStudioName(activity);
+                const hasLocation = location && location !== 'Unknown Studio';
                 return {
                   messageParts: [
                     { text: 'You did a ', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
-                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                    { text: getStudioName(activity) || '', bold: true, clickable: true },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
                     { text: ' with ', bold: false, clickable: false },
                     { text: `${partnerNames[0]}`, bold: true, clickable: true },
                     { text: '.', bold: false, clickable: false }
@@ -384,7 +400,20 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               }
             } else {
               // With Another User (Others Only)
-              if (specialPhrase) {
+              if (isEvent) {
+                // Event format: "[Username] and [Partner] attended [Event Name]"
+                return {
+                  messageParts: [
+                    { text: `${username} and `, bold: false, clickable: false },
+                    { text: `${partnerNames[0]} `, bold: true, clickable: true },
+                    { text: 'attended ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (specialPhrase) {
                 // Special phrase for running/walking/cycling: "went for a run/walk/bike ride"
                 return {
                   messageParts: [
@@ -398,12 +427,14 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 };
               } else if (isTreatment) {
                 // Treatment format: "[Username] did a [Treatment Name] at [Location] with [Partner]"
+                const location = getStudioName(activity);
+                const hasLocation = location && location !== 'Unknown Studio';
                 return {
                   messageParts: [
                     { text: `${username} did a `, bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
-                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                    { text: getStudioName(activity) || '', bold: true, clickable: true },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
                     { text: ' with ', bold: false, clickable: false },
                     { text: `${partnerNames[0]}`, bold: true, clickable: true },
                     { text: '.', bold: false, clickable: false }
@@ -448,7 +479,20 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           } else if (partnerNames.length === 2) {
             if (isOwnActivity) {
               // Group Activity (You in Group) - 2 partners
-              if (specialPhrase) {
+              if (isEvent) {
+                // Event format: "You, [Partner1], and [Partner2] attended [Event Name]"
+                return {
+                  messageParts: [
+                    { text: 'You, ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]}, and ${partnerNames[1]} `, bold: true, clickable: true },
+                    { text: 'attended ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (specialPhrase) {
                 return {
                   messageParts: [
                     { text: 'You, ', bold: false, clickable: false },
@@ -462,12 +506,14 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 };
               } else if (isTreatment) {
                 // Treatment format: "You did a [Treatment Name] at [Location] with [Partner1, Partner2]"
+                const location = getStudioName(activity);
+                const hasLocation = location && location !== 'Unknown Studio';
                 return {
                   messageParts: [
                     { text: 'You did a ', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
-                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                    { text: getStudioName(activity) || '', bold: true, clickable: true },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
                     { text: ' with ', bold: false, clickable: false },
                     { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
                     { text: '.', bold: false, clickable: false }
@@ -513,7 +559,20 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               }
             } else {
               // Group Activity (Others Only) - 2 partners
-              if (specialPhrase) {
+              if (isEvent) {
+                // Event format: "[Username], [Partner1], and [Partner2] attended [Event Name]"
+                return {
+                  messageParts: [
+                    { text: `${username}, `, bold: false, clickable: false },
+                    { text: `${partnerNames[0]}, and ${partnerNames[1]} `, bold: true, clickable: true },
+                    { text: 'attended ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (specialPhrase) {
                 return {
                   messageParts: [
                     { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} `, bold: false, clickable: false },
@@ -526,12 +585,14 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 };
               } else if (isTreatment) {
                 // Treatment format: "[Username] did a [Treatment Name] at [Location] with [Partner1, Partner2]"
+                const location = getStudioName(activity);
+                const hasLocation = location && location !== 'Unknown Studio';
                 return {
                   messageParts: [
                     { text: `${username} did a `, bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
-                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                    { text: getStudioName(activity) || '', bold: true, clickable: true },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
                     { text: ' with ', bold: false, clickable: false },
                     { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
                     { text: '.', bold: false, clickable: false }
@@ -577,7 +638,20 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               // Group Activity (You in Group) - 3+ partners
               const firstTwo = partnerNames.slice(0, 2).join(', ');
               const remaining = partnerNames.length - 2;
-              if (specialPhrase) {
+              if (isEvent) {
+                // Event format: "You, [Partner1], [Partner2], and X others attended [Event Name]"
+                return {
+                  messageParts: [
+                    { text: 'You, ', bold: false, clickable: false },
+                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} `, bold: true, clickable: true },
+                    { text: 'attended ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (specialPhrase) {
                 return {
                   messageParts: [
                     { text: 'You, ', bold: false, clickable: false },
@@ -591,12 +665,14 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 };
               } else if (isTreatment) {
                 // Treatment format: "You did a [Treatment Name] at [Location] with [Partner1, Partner2, and X others]"
+                const location = getStudioName(activity);
+                const hasLocation = location && location !== 'Unknown Studio';
                 return {
                   messageParts: [
                     { text: 'You did a ', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
-                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                    { text: getStudioName(activity) || '', bold: true, clickable: true },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
                     { text: ' with ', bold: false, clickable: false },
                     { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
                     { text: '.', bold: false, clickable: false }
@@ -644,7 +720,20 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               // Group Activity (Others Only) - 3+ partners
               const firstTwo = partnerNames.slice(0, 2).join(', ');
               const remaining = partnerNames.length - 2;
-              if (specialPhrase) {
+              if (isEvent) {
+                // Event format: "[Username], [Partner1], [Partner2], and X others attended [Event Name]"
+                return {
+                  messageParts: [
+                    { text: `${username}, `, bold: false, clickable: false },
+                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} `, bold: true, clickable: true },
+                    { text: 'attended ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (specialPhrase) {
                 return {
                   messageParts: [
                     { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} `, bold: false, clickable: false },
@@ -657,12 +746,14 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 };
               } else if (isTreatment) {
                 // Treatment format: "[Username] did a [Treatment Name] at [Location] with [Partner1, Partner2, and X others]"
+                const location = getStudioName(activity);
+                const hasLocation = location && location !== 'Unknown Studio';
                 return {
                   messageParts: [
                     { text: `${username} did a `, bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
-                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                    { text: getStudioName(activity) || '', bold: true, clickable: true },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
                     { text: ' with ', bold: false, clickable: false },
                     { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
                     { text: '.', bold: false, clickable: false }
@@ -710,6 +801,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           let activityTerm = 'workout';
           const isPractice = activityType === 'practice';
           const isTreatment = activityType === 'treatment';
+          const isEvent = activityType === 'event';
           
           // Only use "workout" for movement activities, otherwise just the activity name
           if (activityType !== 'movement') {
@@ -718,7 +810,18 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           
           if (isOwnActivity) {
             // Solo Activity (You)
-            if (specialPhrase) {
+            if (isEvent) {
+              // Event format: "You attended [Event Name]"
+              return {
+                messageParts: [
+                  { text: 'You attended ', bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            } else if (specialPhrase) {
               // Special phrase for running/walking/cycling: "went for a run/walk/bike ride"
               return {
                 messageParts: [
@@ -733,12 +836,14 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
             } else if (isTreatment) {
               // Treatment format: "You did a [Treatment Name] at [Location] with [User(s)]"
               // For solo treatments, show provider if available, otherwise no "with" clause
+              const location = getStudioName(activity);
+              const hasLocation = location && location !== 'Unknown Studio';
               return {
                 messageParts: [
                   { text: 'You did a ', bold: false, clickable: false },
                   { text: `${activityName}`, bold: true, clickable: true },
-                  { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                  { text: getStudioName(activity) || '', bold: true, clickable: true },
+                  { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                  { text: hasLocation ? location : '', bold: true, clickable: true },
                   { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
                   { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
@@ -780,7 +885,18 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
             }
           } else {
             // Solo Activity (Others)
-            if (specialPhrase) {
+            if (isEvent) {
+              // Event format: "[Username] attended [Event Name]"
+              return {
+                messageParts: [
+                  { text: `${username} attended `, bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            } else if (specialPhrase) {
               // Special phrase for running/walking/cycling: "went for a run/walk/bike ride"
               return {
                 messageParts: [
@@ -794,12 +910,14 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
               };
             } else if (isTreatment) {
               // Treatment format: "[Username] did a [Treatment Name] at [Location] with [Provider/User(s)]"
+              const location = getStudioName(activity);
+              const hasLocation = location && location !== 'Unknown Studio';
               return {
                 messageParts: [
                   { text: `${username} did a `, bold: false, clickable: false },
                   { text: `${activityName}`, bold: true, clickable: true },
-                  { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                  { text: getStudioName(activity) || '', bold: true, clickable: true },
+                  { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                  { text: hasLocation ? location : '', bold: true, clickable: true },
                   { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
                   { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
