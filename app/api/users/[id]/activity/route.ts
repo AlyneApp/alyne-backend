@@ -283,6 +283,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
           // Determine the correct terminology based on activity_type
           const activityType = metadata.activity_type || 'movement';
           let activityTerm = 'workout';
+          const isTreatment = activityType === 'treatment';
           
           // Only use "workout" for movement activities, otherwise just the activity name
           if (activityType !== 'movement') {
@@ -291,6 +292,22 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
           
           if (partnerNames.length === 1) {
             if (isOwnActivity) {
+              if (isTreatment) {
+                // Treatment format: "You did a [Treatment Name] at [Location] with [Partner]"
+                return {
+                  messageParts: [
+                    { text: 'You did a ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name || '', bold: true, clickable: true },
+                    { text: ' with ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              }
               return {
                 messageParts: [
                   { text: 'You and ', bold: false, clickable: false },
@@ -309,6 +326,22 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
                 schedule: null
               };
             } else {
+              if (isTreatment) {
+                // Treatment format: "[Username] did a [Treatment Name] at [Location] with [Partner]"
+                return {
+                  messageParts: [
+                    { text: `${username} did a `, bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name || '', bold: true, clickable: true },
+                    { text: ' with ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              }
               return {
                 messageParts: [
                   { text: `${username} and ${partnerNames[0]} did a `, bold: false, clickable: false },
@@ -327,6 +360,22 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
             }
           } else if (partnerNames.length === 2) {
             if (isOwnActivity) {
+              if (isTreatment) {
+                // Treatment format: "You did a [Treatment Name] at [Location] with [Partner1, Partner2]"
+                return {
+                  messageParts: [
+                    { text: 'You did a ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name || '', bold: true, clickable: true },
+                    { text: ' with ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              }
               return {
                 messageParts: [
                   { text: 'You did a ', bold: false, clickable: false },
@@ -345,6 +394,22 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
                 schedule: null
               };
             } else {
+              if (isTreatment) {
+                // Treatment format: "[Username] did a [Treatment Name] at [Location] with [Partner1, Partner2]"
+                return {
+                  messageParts: [
+                    { text: `${username} did a `, bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name || '', bold: true, clickable: true },
+                    { text: ' with ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              }
               return {
                 messageParts: [
                   { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} did a `, bold: false, clickable: false },
@@ -365,6 +430,22 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
             const firstTwo = partnerNames.slice(0, 2).join(', ');
             const remaining = partnerNames.length - 2;
             if (isOwnActivity) {
+              if (isTreatment) {
+                // Treatment format: "You did a [Treatment Name] at [Location] with [Partner1, Partner2, and X others]"
+                return {
+                  messageParts: [
+                    { text: 'You did a ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name || '', bold: true, clickable: true },
+                    { text: ' with ', bold: false, clickable: false },
+                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              }
               return {
                 messageParts: [
                   { text: 'You did a ', bold: false, clickable: false },
@@ -383,6 +464,22 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
                 schedule: null
               };
             } else {
+              if (isTreatment) {
+                // Treatment format: "[Username] did a [Treatment Name] at [Location] with [Partner1, Partner2, and X others]"
+                return {
+                  messageParts: [
+                    { text: `${username} did a `, bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                    { text: activity.studios?.name || '', bold: true, clickable: true },
+                    { text: ' with ', bold: false, clickable: false },
+                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              }
               return {
                 messageParts: [
                   { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did a `, bold: false, clickable: false },
@@ -404,6 +501,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
           // Determine the correct terminology based on activity_type
           const activityType = metadata.activity_type || 'movement';
           let activityTerm = 'workout';
+          const isTreatment = activityType === 'treatment';
           
           // Only use "workout" for movement activities, otherwise just the activity name
           if (activityType !== 'movement') {
@@ -411,6 +509,22 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
           }
           
           if (isOwnActivity) {
+            if (isTreatment) {
+              // Treatment format: "You did a [Treatment Name] at [Location] with [Provider]"
+              return {
+                messageParts: [
+                  { text: 'You did a ', bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name || '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            }
             return {
               messageParts: [
                 { text: 'You did a ', bold: false, clickable: false },
@@ -427,6 +541,22 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
               schedule: null
             };
           } else {
+            if (isTreatment) {
+              // Treatment format: "[Username] did a [Treatment Name] at [Location] with [Provider]"
+              return {
+                messageParts: [
+                  { text: `${username} did a `, bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: activity.studios?.name ? ` at ` : '', bold: false, clickable: false },
+                  { text: activity.studios?.name || '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            }
             return {
               messageParts: [
                 { text: `${username} did a `, bold: false, clickable: false },

@@ -66,6 +66,17 @@ export async function GET(
       console.error('Error fetching following count:', followingError);
     }
 
+    // Get the count of posts this user has made
+    const { count: postsCount, error: postsError } = await supabase
+      .from('activity_feed')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', id);
+
+    if (postsError) {
+      console.error('Error fetching posts count:', postsError);
+      // Continue without posts count
+    }
+
     // Check if current user follows the target user and get follow request status
     const { data: followData } = await supabase
       .from('friends')
@@ -85,6 +96,7 @@ export async function GET(
       ...targetUser,
       followers_count: followersCount || 0,
       following_count: followingCount || 0,
+      posts_count: postsCount || 0,
       is_following: isFollowing,
       follow_request_status: followRequestStatus,
       can_view_content: canViewContent,
@@ -96,6 +108,7 @@ export async function GET(
         ...targetUser,
         followers_count: followersCount || 0,
         following_count: followingCount || 0,
+        posts_count: postsCount || 0,
         is_following: isFollowing,
         follow_request_status: followRequestStatus,
         can_view_content: canViewContent,
