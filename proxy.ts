@@ -50,7 +50,7 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
   };
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const origin = request.headers.get('origin');
 
@@ -133,4 +133,5 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: ['/api/:path*']
-}; 
+};
+

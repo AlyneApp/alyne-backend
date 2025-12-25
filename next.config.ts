@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
       },
       // CORS headers for all API routes
       // Note: Access-Control-Allow-Credentials cannot be used with wildcard origin
-      // The middleware handles dynamic CORS headers based on the request origin
+      // The proxy (formerly middleware) handles dynamic CORS headers based on the request origin
       {
         source: '/api/:path*',
         headers: [
@@ -45,12 +45,6 @@ const nextConfig: NextConfig = {
   // Environment variables for build
   env: {
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1',
-  },
-  
-  // ESLint configuration
-  eslint: {
-    dirs: ['app', 'lib', 'components'],
-    ignoreDuringBuilds: false,
   },
   
   // TypeScript configuration
