@@ -56,7 +56,7 @@ interface FormattedActivity {
 
 // Helper function to get studio name (from join or extra_data)
 function getStudioName(activity: ActivityFeedItem): string {
-  return activity.studios?.name || (activity.extra_data as any)?.studio_name || 'Unknown Studio';
+  return activity.studios?.name || (activity.extra_data as any)?.studio_name || '';
 }
 
 // Helper function to get special phrasing for running, walking, and cycling
@@ -361,8 +361,10 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   schedule: null
                 };
               } else if (isPractice) {
-                // Practice format: "did a <class_name> <activityName> at <studio> by <instructor>"
+                // Practice format: "did a <class_name> <activityName> at <studio> with <instructor>"
                 // Partner is already included in "You and <partner>"
+                const location = getStudioName(activity);
+                const hasLocation = location && location.trim() !== '';
                 return {
                   messageParts: [
                     { text: 'You and ', bold: false, clickable: false },
@@ -370,9 +372,9 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                     { text: 'did a ', bold: false, clickable: false },
                     { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
-                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                    { text: getStudioName(activity) || '', bold: true, clickable: true },
-                    { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
                     { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                     { text: '.', bold: false, clickable: false }
                   ],
@@ -443,15 +445,17 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   schedule: null
                 };
               } else if (isPractice) {
-                // Practice format: "did a <class_name> <activityName> at <studio> by <instructor> with <partner>"
+                // Practice format: "did a <class_name> <activityName> at <studio> with <instructor>"
+                const location = getStudioName(activity);
+                const hasLocation = location && location.trim() !== '';
                 return {
                   messageParts: [
                     { text: `${username} and ${partnerNames[0]} did a `, bold: false, clickable: false },
                     { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
-                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                    { text: getStudioName(activity) || '', bold: true, clickable: true },
-                    { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
                     { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                     { text: '.', bold: false, clickable: false }
                   ],
@@ -522,17 +526,17 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   schedule: null
                 };
               } else if (isPractice) {
+                const location = getStudioName(activity);
+                const hasLocation = location && location.trim() !== '';
                 return {
                   messageParts: [
                     { text: 'You did a ', bold: false, clickable: false },
                     { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
-                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                    { text: getStudioName(activity) || '', bold: true, clickable: true },
-                    { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
                     { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
-                    { text: ' with ', bold: false, clickable: false },
-                    { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
                     { text: '.', bold: false, clickable: false }
                   ],
                   type: activityName,
@@ -601,14 +605,16 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   schedule: null
                 };
               } else if (isPractice) {
+                const location = getStudioName(activity);
+                const hasLocation = location && location.trim() !== '';
                 return {
                   messageParts: [
                     { text: `${username}, ${partnerNames[0]}, and ${partnerNames[1]} did a `, bold: false, clickable: false },
                     { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
-                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                    { text: getStudioName(activity) || '', bold: true, clickable: true },
-                    { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
                     { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                     { text: '.', bold: false, clickable: false }
                   ],
@@ -681,17 +687,17 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   schedule: null
                 };
               } else if (isPractice) {
+                const location = getStudioName(activity);
+                const hasLocation = location && location.trim() !== '';
                 return {
                   messageParts: [
-                    { text: 'You did a ', bold: false, clickable: false },
+                    { text: `You, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did a `, bold: false, clickable: false },
                     { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
-                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                    { text: getStudioName(activity) || '', bold: true, clickable: true },
-                    { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
                     { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
-                    { text: ' with ', bold: false, clickable: false },
-                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
                     { text: '.', bold: false, clickable: false }
                   ],
                   type: activityName,
@@ -762,14 +768,16 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                   schedule: null
                 };
               } else if (isPractice) {
+                const location = getStudioName(activity);
+                const hasLocation = location && location.trim() !== '';
                 return {
                   messageParts: [
                     { text: `${username}, ${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} did a `, bold: false, clickable: false },
                     { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
-                    { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                    { text: getStudioName(activity) || '', bold: true, clickable: true },
-                    { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
                     { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                     { text: '.', bold: false, clickable: false }
                   ],
@@ -852,14 +860,16 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 schedule: null
               };
             } else if (isPractice) {
+              const location = getStudioName(activity);
+              const hasLocation = location && location.trim() !== '';
               return {
                 messageParts: [
                   { text: 'You did a ', bold: false, clickable: false },
                   { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
                   { text: `${activityName}`, bold: true, clickable: true },
-                  { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                  { text: getStudioName(activity) || '', bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                  { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                  { text: hasLocation ? location : '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
                   { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
                 ],
@@ -926,14 +936,16 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
                 schedule: null
               };
             } else if (isPractice) {
+              const location = getStudioName(activity);
+              const hasLocation = location && location.trim() !== '';
               return {
                 messageParts: [
                   { text: `${username} did a `, bold: false, clickable: false },
                   { text: classMetadata.class_name ? `${classMetadata.class_name} ` : '', bold: false, clickable: false },
                   { text: `${activityName}`, bold: true, clickable: true },
-                  { text: getStudioName(activity) ? ` at ` : '', bold: false, clickable: false },
-                  { text: getStudioName(activity) || '', bold: true, clickable: true },
-                  { text: classMetadata.instructor_name ? ` by ` : '', bold: false, clickable: false },
+                  { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                  { text: hasLocation ? location : '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
                   { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                   { text: '.', bold: false, clickable: false }
                 ],
@@ -961,7 +973,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
         }
       }
       break;
-      
+
     case 'studio_favorite':
       if (activity.studios) {
         return {
