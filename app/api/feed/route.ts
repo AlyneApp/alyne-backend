@@ -76,23 +76,23 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
   const username = activity.users?.full_name || activity.users?.username || 'Someone';
   const metadata = activity.extra_data || {};
   const isOwnActivity = currentUserId && activity.user_id === currentUserId;
-  
+
   switch (activity.type) {
     case 'class_checkin':
-      if (activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string' && 
-          !['Custom', 'Custom Class', 'Activity'].includes(metadata.class_name)) {
+      if (activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string' &&
+        !['Custom', 'Custom Class', 'Activity'].includes(metadata.class_name)) {
         const classMetadata = metadata as any;
-        
+
         if (activity.collaboration_partners && activity.collaboration_partners.length > 0) {
           const { data: partnerUsers } = await supabase
             .from('users')
             .select('full_name, username')
             .in('id', activity.collaboration_partners);
-          
-          const partnerNames = partnerUsers?.map(user => 
+
+          const partnerNames = partnerUsers?.map(user =>
             user.full_name || user.username || 'Someone'
           ) || [];
-          
+
           if (partnerNames.length === 1) {
             if (isOwnActivity) {
               // With Another User (You + Others)
@@ -286,34 +286,34 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           }
         }
       }
-      
+
       if ('activity_name' in metadata || 'activity_type' in metadata) {
         const activityName = String((metadata as Record<string, unknown>).activity_name || (metadata as Record<string, unknown>).activity_type || 'a workout');
         const classMetadata = metadata as any;
         const specialPhrase = getSpecialActivityPhrase(activityName);
-        
+
         if (activity.collaboration_partners && activity.collaboration_partners.length > 0) {
           const { data: partnerUsers } = await supabase
             .from('users')
             .select('full_name, username')
             .in('id', activity.collaboration_partners);
-          
-          const partnerNames = partnerUsers?.map(user => 
+
+          const partnerNames = partnerUsers?.map(user =>
             user.full_name || user.username || 'Someone'
           ) || [];
-          
+
           // Determine the correct terminology based on activity_type
           const activityType = metadata.activity_type || 'movement';
           let activityTerm = 'workout';
           const isPractice = activityType === 'practice';
           const isTreatment = activityType === 'treatment';
           const isEvent = activityType === 'event';
-          
+
           // Only use "workout" for movement activities, otherwise just the activity name
           if (activityType !== 'movement') {
             activityTerm = '';
           }
-          
+
           if (partnerNames.length === 1) {
             if (isOwnActivity) {
               // With Another User (You + Others)
@@ -810,12 +810,12 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           const isPractice = activityType === 'practice';
           const isTreatment = activityType === 'treatment';
           const isEvent = activityType === 'event';
-          
+
           // Only use "workout" for movement activities, otherwise just the activity name
           if (activityType !== 'movement') {
             activityTerm = '';
           }
-          
+
           if (isOwnActivity) {
             // Solo Activity (You)
             if (isEvent) {
@@ -987,7 +987,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
         };
       }
       break;
-      
+
     case 'studio_like':
       if (activity.studios) {
         return {
@@ -1000,7 +1000,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
         };
       }
       break;
-      
+
     case 'class_transfer':
       if (activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string') {
         const classMetadata = metadata as any;
@@ -1037,20 +1037,20 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
         };
       }
       break;
-      
+
     case 'general_post':
       const postMetadata = metadata as PostActivityDetails;
-      
+
       if (activity.collaboration_partners && activity.collaboration_partners.length > 0) {
         const { data: partnerUsers } = await supabase
           .from('users')
           .select('full_name, username')
           .in('id', activity.collaboration_partners);
-        
-        const partnerNames = partnerUsers?.map(user => 
+
+        const partnerNames = partnerUsers?.map(user =>
           user.full_name || user.username || 'Someone'
         ) || [];
-        
+
         if (partnerNames.length === 1) {
           return {
             messageParts: [
@@ -1100,7 +1100,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
           schedule: null
         };
       }
-  
+
     default:
       const fallbackMetadata = metadata as PostActivityDetails;
       return {
@@ -1111,7 +1111,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, currentUserId?:
         schedule: null
       };
   }
-  
+
   const fallbackMetadata = metadata as PostActivityDetails;
   return {
     messageParts: [
@@ -1126,16 +1126,16 @@ function getRelativeTime(dateString: string): string {
   const now = new Date();
   const date = new Date(dateString);
   const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-  
+
   if (diffInMinutes < 1) return 'Now';
   if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes === 1 ? '' : 's'} ago`;
-  
+
   const diffInHours = Math.floor(diffInMinutes / 60);
   if (diffInHours < 24) return `${diffInHours} hour${diffInHours === 1 ? '' : 's'} ago`;
-  
+
   const diffInDays = Math.floor(diffInHours / 24);
   if (diffInDays < 7) return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`;
-  
+
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric'
@@ -1145,17 +1145,27 @@ function getRelativeTime(dateString: string): string {
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
-    
+
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
     }
 
     const token = authHeader.replace('Bearer ', '');
-    
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
-      return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
+      console.error('❌ Auth Error in feed route:', {
+        error: authError,
+        authErrorName: authError?.name,
+        authErrorMessage: authError?.message,
+        tokenLength: token?.length,
+        hasUser: !!user,
+        tokenPreview: token ? token.substring(0, 10) + '...' : 'none'
+      });
+      return NextResponse.json({
+        error: `Invalid authentication (Feed): ${authError?.message || 'No user found'}`
+      }, { status: 401 });
     }
 
     // Get pagination parameters
@@ -1197,7 +1207,7 @@ export async function GET(request: NextRequest) {
 
     const friendIdsArray = Array.from(friendIds);
     console.log(`📊 Feed API - Total friend IDs (including self): ${friendIdsArray.length}`, friendIdsArray);
-    
+
     if (friendIdsArray.length === 0) {
       return NextResponse.json({
         success: true,
@@ -1213,18 +1223,18 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`📊 Feed API - Querying activities for ${friendIdsArray.length} friend IDs:`, friendIdsArray);
-    
+
     // Get list of blocked user IDs
     const { data: blockedUsers } = await supabase
       .from('blocked_users')
       .select('blocked_user_id')
       .eq('user_id', user.id);
-    
+
     const blockedUserIds = blockedUsers?.map(b => b.blocked_user_id) || [];
-    
+
     // Filter out blocked users from friend IDs
     const filteredFriendIds = friendIdsArray.filter(friendId => !blockedUserIds.includes(friendId));
-    
+
     if (filteredFriendIds.length === 0) {
       return NextResponse.json({
         success: true,
@@ -1238,9 +1248,9 @@ export async function GET(request: NextRequest) {
         }
       });
     }
-    
+
     console.log(`📊 Feed API - After filtering blocked users: ${filteredFriendIds.length} friend IDs`);
-    
+
     // Build query - filter out rejected content
     let query = supabase
       .from('activity_feed')
@@ -1268,12 +1278,12 @@ export async function GET(request: NextRequest) {
         )
       `)
       .in('user_id', filteredFriendIds);
-    
+
     // Only show approved content (or pending if moderation hasn't run yet)
     // Exclude rejected content - allow null, approved, or pending
     // Using .or() with PostgREST syntax: column.operator.value,column.operator.value
     query = query.or('moderation_status.is.null,moderation_status.eq.approved,moderation_status.eq.pending');
-    
+
     const { data: activities, error: activitiesError } = await query
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -1296,11 +1306,11 @@ export async function GET(request: NextRequest) {
 
     // Fetch ratings for activities (studio, class, instructor)
     const activityIds = activities?.map(activity => activity.id) || [];
-    
+
     let studioRatingsMap = new Map();
     let classRatingsMap = new Map();
     let instructorRatingsMap = new Map();
-    
+
     if (activityIds.length > 0) {
       // Fetch all ratings for these activities
       const { data: ratings, error: ratingsError } = await supabase
@@ -1354,7 +1364,7 @@ export async function GET(request: NextRequest) {
     const transformedActivities = await Promise.all((activities as unknown as ActivityFeedItem[])?.map(async (activity) => {
       const formatted = await formatActivityMessage(activity, user.id);
       const extraData = activity.extra_data || {};
-      
+
       // Debug logging for route data and metrics
       console.log('🔍 Backend - Activity extra data:', {
         id: activity.id,
@@ -1367,7 +1377,7 @@ export async function GET(request: NextRequest) {
         distance: (extraData as any).distance,
         duration: (extraData as any).duration
       });
-      
+
       // Debug logging for images
       if ((extraData as any).photos || (extraData as any).image_url) {
         console.log('📸 Feed API - Activity with images:', {
@@ -1379,7 +1389,7 @@ export async function GET(request: NextRequest) {
           photos: (extraData as any).photos
         });
       }
-      
+
       const result = {
         id: activity.id,
         userId: activity.user_id, // Add user ID for navigation
@@ -1399,7 +1409,7 @@ export async function GET(request: NextRequest) {
         commentCount: activity.comment_count || 0,
         activity_type: 'activity_type' in extraData ? (extraData.activity_type as string) : activity.type,
         collaborationPartners: activity.collaboration_partners || [],
-        partnerNames: activity.collaboration_partners && activity.collaboration_partners.length > 0 ? 
+        partnerNames: activity.collaboration_partners && activity.collaboration_partners.length > 0 ?
           (await supabase
             .from('users')
             .select('full_name, username, id')
@@ -1408,8 +1418,8 @@ export async function GET(request: NextRequest) {
               id: user.id,
               name: user.full_name || user.username || 'Someone'
             })) || [])) : [],
-        image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } : 
-               'photos' in extraData && Array.isArray(extraData.photos) && extraData.photos.length > 0 ? { uri: extraData.photos[0] } : undefined,
+        image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } :
+          'photos' in extraData && Array.isArray(extraData.photos) && extraData.photos.length > 0 ? { uri: extraData.photos[0] } : undefined,
         photos: 'photos' in extraData && Array.isArray(extraData.photos) ? extraData.photos.map((url: string) => ({ uri: url })) : [],
         routeData: 'route_data' in extraData ? extraData.route_data : undefined,
         distance: 'distance' in extraData ? extraData.distance : undefined,
@@ -1419,13 +1429,13 @@ export async function GET(request: NextRequest) {
         instructorRating: instructorRatingsMap.get(activity.id) || null,
         howItWent: 'how_it_went' in extraData ? extraData.how_it_went || null : null
       };
-      
+
       // Log all ratings for this activity
       const hasStudioRating = studioRatingsMap.has(activity.id);
       const hasClassRating = classRatingsMap.has(activity.id);
       const hasInstructorRating = instructorRatingsMap.has(activity.id);
       const activityType = 'activity_type' in extraData ? (extraData.activity_type as string) : activity.type;
-      
+
       if (hasStudioRating || hasClassRating || hasInstructorRating) {
         console.log(`📊 Activity ${activity.id} (${activityType}) ratings:`, {
           studio: hasStudioRating ? studioRatingsMap.get(activity.id) : null,
@@ -1433,7 +1443,7 @@ export async function GET(request: NextRequest) {
           instructor: hasInstructorRating ? instructorRatingsMap.get(activity.id) : null,
         });
       }
-      
+
       return result;
     }) || []);
 

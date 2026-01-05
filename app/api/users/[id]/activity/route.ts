@@ -510,7 +510,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
                   schedule: null
                 };
               } else if (isTreatment) {
-                // Treatment format: "You did a [Treatment Name] at [Location] with [Partner1, Partner2, and X others]"
+                // Treatment format: "@@ a [Treatment Name] at [Location] with [Partner1, Partner2, and X others]"
                 const location = getStudioName(activity);
                 const hasLocation = location && location.trim() !== '';
                 return {

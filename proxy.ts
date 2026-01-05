@@ -29,7 +29,7 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
   // If no origin is provided (mobile app), use '*' but don't set credentials
   // If origin is provided and allowed, use it and allow credentials
   const isAllowedOrigin = !origin || allowedOrigins.includes(origin) || origin.includes('localhost') || origin.includes('exp://');
-  
+
   // When origin is not provided (mobile apps), use '*' and don't set credentials
   // When origin is provided, use it and allow credentials
   if (!origin || !isAllowedOrigin) {
@@ -99,7 +99,9 @@ export async function proxy(request: NextRequest) {
         supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Set' : 'Missing',
         path: path,
       });
-      const response = NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
+      const response = NextResponse.json({
+        error: `Invalid authentication (Proxy): ${error?.message || 'No user found'}`
+      }, { status: 401 });
       // Add CORS headers even to error responses
       Object.entries(getCorsHeaders(origin)).forEach(([key, value]) => {
         response.headers.set(key, value);

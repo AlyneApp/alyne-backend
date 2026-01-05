@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,8 +13,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Server configuration error: supabaseAdmin not available' },
+        { status: 500 }
+      );
+    }
+
     // Create user with Supabase
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
       email,
       password,
     });
@@ -34,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user profile
-    const { error: profileError } = await supabase
+    const { error: profileError } = await supabaseAdmin
       .from('users')
       .insert([{
         id: authData.user.id,
@@ -50,6 +57,60 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // --- Auto-follow @giuliettavento ---
+    try {
+      const TARGET_USERNAME = 'giuliettavento';
+
+      // 1. Find the user ID for @giuliettavento (using ilike for case-insensitivity)
+      const { data: targetUser } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, username')
+        .ilike('username', TARGET_USERNAME)
+        .single();
+
+      if (targetUser) {
+        console.log(`🔍 Found target user ${TARGET_USERNAME} with ID: ${targetUser.id}`);
+
+        // 2. Create the friendship record (new user follows giulettavento)
+        const { data: friendship, error: friendshipError } = await supabaseAdmin
+          .from('friends')
+          .insert({
+            user_id: authData.user.id,
+            friend_id: targetUser.id,
+            approved: true
+          })
+          .select()
+          .single();
+
+        if (friendshipError) {
+          console.error(`❌ Friendship creation error:`, friendshipError);
+        }
+
+        if (friendship) {
+          // 3. Create a notification for @giuliettavento
+          const followerName = fullName || username || 'A new user';
+          await supabaseAdmin
+            .from('notifications')
+            .insert({
+              type: 'follow',
+              message: `${followerName} is now following you. Follow back?`,
+              from_user_id: authData.user.id,
+              to_user_id: targetUser.id,
+              related_id: friendship.id,
+              is_read: false
+            });
+
+          console.log(`✅ Auto-followed ${TARGET_USERNAME} for user ${username}`);
+        }
+      } else {
+        console.warn(`⚠️ User @${TARGET_USERNAME} not found for auto-follow`);
+      }
+    } catch (followError) {
+      // Don't fail registration if auto-follow fails
+      console.error('❌ Auto-follow failed:', followError);
+    }
+    // ----------------------------------
 
     return NextResponse.json({
       success: true,
