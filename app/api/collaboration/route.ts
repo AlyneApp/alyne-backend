@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 // POST /api/collaboration - Create collaboration requests for tagged members
 export async function POST(request: NextRequest) {
@@ -23,7 +23,13 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
-
+    // Validate supabaseAdmin
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Server configuration error: supabaseAdmin not available' },
+        { status: 500 }
+      );
+    }
     // Verify the activity belongs to the current user
     const { data: activity, error: activityError } = await supabase
       .from('activity_feed')
@@ -56,7 +62,7 @@ export async function POST(request: NextRequest) {
       if (memberId === user.id) continue;
 
       // Check if collaboration notification already exists
-      const { data: existingNotification } = await supabase
+      const { data: existingNotification } = await supabaseAdmin
         .from('notifications')
         .select('id')
         .eq('related_id', activity_id)
@@ -67,7 +73,7 @@ export async function POST(request: NextRequest) {
       if (existingNotification) continue; // Skip if notification already exists
 
       // Create notification for the tagged member
-      const { error: notificationError } = await supabase
+      const { error: notificationError } = await supabaseAdmin
         .from('notifications')
         .insert({
           type: 'collaboration_request',

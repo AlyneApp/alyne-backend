@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { NotificationService } from '@/lib/notifications';
 
 // POST /api/likes - Toggle like (Instagram-style)
 export async function POST(request: NextRequest) {
   try {
     const { activity_id } = await request.json();
-    
+
     if (!activity_id) {
       return NextResponse.json({ error: 'activity_id is required' }, { status: 400 });
     }
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
+
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -41,19 +41,23 @@ export async function POST(request: NextRequest) {
         .eq('activity_id', activity_id)
         .eq('user_id', user.id);
 
-      const { data: currentActivity } = await supabase
+      const { data: currentActivity, error: activityError } = await supabaseAdmin!
         .from('activity_feed')
         .select('like_count')
         .eq('id', activity_id)
         .single();
 
-      if (currentActivity) {
+      if (!activityError && currentActivity) {
         const newCount = Math.max(0, (currentActivity.like_count || 0) - 1);
-        
-        await supabase
+
+        const { error: updateError } = await supabaseAdmin!
           .from('activity_feed')
           .update({ like_count: newCount })
           .eq('id', activity_id);
+
+        if (updateError) {
+          console.error('Error updating like count:', updateError);
+        }
       }
 
       return NextResponse.json({ success: true, liked: false });
@@ -64,19 +68,23 @@ export async function POST(request: NextRequest) {
         .insert({ activity_id, user_id: user.id });
 
       // Get activity owner and update like_count
-      const { data: currentActivity } = await supabase
+      const { data: currentActivity, error: activityError } = await supabaseAdmin!
         .from('activity_feed')
         .select('user_id, like_count')
         .eq('id', activity_id)
         .single();
 
-      if (currentActivity) {
+      if (!activityError && currentActivity) {
         const newCount = (currentActivity.like_count || 0) + 1;
-        
-        await supabase
+
+        const { error: updateError } = await supabaseAdmin!
           .from('activity_feed')
           .update({ like_count: newCount })
           .eq('id', activity_id);
+
+        if (updateError) {
+          console.error('Error updating like count:', updateError);
+        }
 
         // Create notification for the post owner (if not liking own post)
         if (currentActivity.user_id !== user.id) {
@@ -107,14 +115,14 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const activityIdsParam = searchParams.get('activity_ids');
-    
+
     if (!activityIdsParam) {
       return NextResponse.json({ success: true, likes: {} });
     }
 
     // Limit to reasonable number to avoid slow queries
     const activityIds = activityIdsParam.split(',').slice(0, 20);
-    
+
     if (activityIds.length === 0) {
       return NextResponse.json({ success: true, likes: {} });
     }
@@ -127,7 +135,7 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
+
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

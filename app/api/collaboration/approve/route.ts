@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,7 +25,13 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
-
+    // Validate supabaseAdmin
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Server configuration error: supabaseAdmin not available' },
+        { status: 500 }
+      );
+    }
     const { data: notification, error: fetchError } = await supabase
       .from('notifications')
       .select('id, related_id, from_user_id, to_user_id, type')
@@ -109,7 +115,7 @@ export async function POST(request: NextRequest) {
 
       const approverName = approverProfile?.full_name || approverProfile?.username || 'Someone';
 
-      const { error: notificationError } = await supabase
+      const { error: notificationError } = await supabaseAdmin
         .from('notifications')
         .insert({
           type: 'collaboration_approved',

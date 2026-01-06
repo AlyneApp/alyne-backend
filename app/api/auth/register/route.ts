@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
           await supabaseAdmin
             .from('notifications')
             .insert({
-              type: 'follow',
+              type: 'follow_request',
               message: `${followerName} is now following you. Follow back?`,
               from_user_id: authData.user.id,
               to_user_id: targetUser.id,

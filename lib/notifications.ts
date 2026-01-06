@@ -1,4 +1,3 @@
-import { supabase } from './supabase';
 import { supabaseAdmin } from './supabase';
 
 // Notification type definitions
@@ -12,6 +11,7 @@ export type NotificationType =
   | 'payment_confirmed'
   | 'like'
   | 'comment'
+  | 'mention'
   | 'studio_update'
   | 'class_reminder'
   | 'achievement';
@@ -72,14 +72,23 @@ export interface NotificationAction {
   handler: (notificationId: string) => Promise<void>;
 }
 
+// Helper to ensure admin client
+function getAdmin() {
+  if (!supabaseAdmin) {
+    throw new Error('Supabase admin client not initialized. Check SUPABASE_SERVICE_ROLE_KEY.');
+  }
+  return supabaseAdmin;
+}
+
 // Follow notification handler
 export const followNotificationHandler: NotificationHandler = {
   type: 'follow_request',
 
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for follow notifications');
+    const admin = getAdmin();
 
-    const { data: fromUser } = await supabase
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
@@ -88,7 +97,7 @@ export const followNotificationHandler: NotificationHandler = {
     const followerName = fromUser?.full_name || fromUser?.username || 'Someone';
     const message = `${followerName} requested to follow you`;
 
-    await supabase.from('notifications').insert({
+    const { error } = await admin.from('notifications').insert({
       type: 'follow_request',
       message,
       from_user_id: fromUserId,
@@ -98,6 +107,8 @@ export const followNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'pending'
     });
+
+    if (error) throw error;
   },
 
   formatMessage: ({ fromUser }) => {
@@ -129,12 +140,13 @@ export const followNotificationHandler: NotificationHandler = {
 
 // Follow approved notification handler
 export const followApprovedNotificationHandler: NotificationHandler = {
-  type: 'follow',
+  type: 'follow_request',
 
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for follow notifications');
+    const admin = getAdmin();
 
-    const { data: fromUser } = await supabase
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
@@ -143,8 +155,8 @@ export const followApprovedNotificationHandler: NotificationHandler = {
     const followerName = fromUser?.full_name || fromUser?.username || 'Someone';
     const message = `${followerName} is now following you. Follow back?`;
 
-    await supabase.from('notifications').insert({
-      type: 'follow',
+    const { error } = await admin.from('notifications').insert({
+      type: 'follow_request',
       message,
       from_user_id: fromUserId,
       to_user_id: toUserId,
@@ -153,6 +165,8 @@ export const followApprovedNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'completed'
     });
+
+    if (error) throw error;
   },
 
   formatMessage: ({ fromUser }) => {
@@ -179,8 +193,9 @@ export const collaborationNotificationHandler: NotificationHandler = {
 
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for collaboration notifications');
+    const admin = getAdmin();
 
-    const { data: fromUser } = await supabase
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
@@ -189,7 +204,7 @@ export const collaborationNotificationHandler: NotificationHandler = {
     const requesterName = fromUser?.full_name || fromUser?.username || 'Someone';
     const message = `${requesterName} tagged you in a workout`;
 
-    await supabase.from('notifications').insert({
+    const { error } = await admin.from('notifications').insert({
       type: 'collaboration_request',
       message,
       from_user_id: fromUserId,
@@ -199,6 +214,8 @@ export const collaborationNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'pending'
     });
+
+    if (error) throw error;
   },
 
   formatMessage: ({ fromUser }) => {
@@ -234,8 +251,9 @@ export const collaborationApprovedNotificationHandler: NotificationHandler = {
 
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for collaboration notifications');
+    const admin = getAdmin();
 
-    const { data: fromUser } = await supabase
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
@@ -244,7 +262,7 @@ export const collaborationApprovedNotificationHandler: NotificationHandler = {
     const collaboratorName = fromUser?.full_name || fromUser?.username || 'Someone';
     const message = `You're collaborating on a workout post with ${collaboratorName}`;
 
-    await supabase.from('notifications').insert({
+    const { error } = await admin.from('notifications').insert({
       type: 'collaboration_approved',
       message,
       from_user_id: fromUserId,
@@ -254,6 +272,8 @@ export const collaborationApprovedNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'completed'
     });
+
+    if (error) throw error;
   },
 
   formatMessage: ({ fromUser }) => {
@@ -264,7 +284,8 @@ export const collaborationApprovedNotificationHandler: NotificationHandler = {
 
 // Helper function to get activity name for notifications
 async function getActivityName(activityId: string): Promise<string> {
-  const { data: activity } = await supabase
+  const admin = getAdmin();
+  const { data: activity } = await admin
     .from('activity_feed')
     .select('type, extra_data')
     .eq('id', activityId)
@@ -306,8 +327,9 @@ export const likeNotificationHandler: NotificationHandler = {
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for like notifications');
     if (!relatedId) throw new Error('relatedId (activity_id) is required for like notifications');
+    const admin = getAdmin();
 
-    const { data: fromUser } = await supabase
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
@@ -317,7 +339,7 @@ export const likeNotificationHandler: NotificationHandler = {
     const activityName = await getActivityName(relatedId);
     const message = `${likerName} liked your ${activityName} post.`;
 
-    await supabase.from('notifications').insert({
+    const { error } = await admin.from('notifications').insert({
       type: 'like',
       message,
       from_user_id: fromUserId,
@@ -327,6 +349,8 @@ export const likeNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'completed'
     });
+
+    if (error) throw error;
   },
 
   formatMessage: ({ fromUser }) => {
@@ -342,8 +366,9 @@ export const commentNotificationHandler: NotificationHandler = {
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for comment notifications');
     if (!relatedId) throw new Error('relatedId (activity_id) is required for comment notifications');
+    const admin = getAdmin();
 
-    const { data: fromUser } = await supabase
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
@@ -353,21 +378,84 @@ export const commentNotificationHandler: NotificationHandler = {
     const activityName = await getActivityName(relatedId);
     const message = `${commenterName} commented on your ${activityName} post. Reply?`;
 
-    await supabase.from('notifications').insert({
+    // Fetch activity owner ID
+    const { data: activity } = await admin
+      .from('activity_feed')
+      .select('user_id')
+      .eq('id', relatedId)
+      .single();
+
+    const { error } = await admin.from('notifications').insert({
       type: 'comment',
       message,
       from_user_id: fromUserId,
       to_user_id: toUserId,
       related_id: relatedId,
-      extra_data: extraData || {},
+      extra_data: {
+        ...extraData,
+        activityName,
+        activityOwnerId: activity?.user_id
+      },
       is_read: false,
       status: 'completed'
     });
+
+    if (error) throw error;
   },
 
   formatMessage: ({ fromUser }) => {
     const name = fromUser?.full_name || fromUser?.username || 'Someone';
     return `${name} commented on your post`;
+  }
+};
+
+// Mention notification handler
+export const mentionNotificationHandler: NotificationHandler = {
+  type: 'mention',
+
+  create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
+    if (!fromUserId) throw new Error('fromUserId is required for mention notifications');
+    if (!relatedId) throw new Error('relatedId (activity_id) is required for mention notifications');
+    const admin = getAdmin();
+
+    const { data: fromUser } = await admin
+      .from('users')
+      .select('username, full_name')
+      .eq('id', fromUserId)
+      .single();
+
+    const commenterName = fromUser?.full_name || fromUser?.username || 'Someone';
+    const activityName = await getActivityName(relatedId);
+    const message = `${commenterName} mentioned you in a comment on a ${activityName} post.`;
+
+    // Fetch activity owner ID
+    const { data: activity } = await admin
+      .from('activity_feed')
+      .select('user_id')
+      .eq('id', relatedId)
+      .single();
+
+    const { error } = await admin.from('notifications').insert({
+      type: 'mention',
+      message,
+      from_user_id: fromUserId,
+      to_user_id: toUserId,
+      related_id: relatedId,
+      extra_data: {
+        ...extraData,
+        activityName,
+        activityOwnerId: activity?.user_id
+      },
+      is_read: false,
+      status: 'completed'
+    });
+
+    if (error) throw error;
+  },
+
+  formatMessage: ({ fromUser }) => {
+    const name = fromUser?.full_name || fromUser?.username || 'Someone';
+    return `${name} mentioned you in a comment`;
   }
 };
 
@@ -377,8 +465,9 @@ export const paymentConfirmationNotificationHandler: NotificationHandler = {
 
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for payment notifications');
+    const admin = getAdmin();
 
-    const { data: fromUser } = await supabase
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
@@ -387,7 +476,7 @@ export const paymentConfirmationNotificationHandler: NotificationHandler = {
     const requesterName = fromUser?.full_name || fromUser?.username || 'Someone';
     const message = `${requesterName} wants to claim your ${extraData?.class_name || 'booking'}. Confirm payment?`;
 
-    await supabase.from('notifications').insert({
+    const { error } = await admin.from('notifications').insert({
       type: 'payment_confirmation',
       message,
       from_user_id: fromUserId,
@@ -397,6 +486,8 @@ export const paymentConfirmationNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'pending'
     });
+
+    if (error) throw error;
   },
 
   formatMessage: ({ fromUser, extraData }) => {
@@ -411,8 +502,9 @@ export const paymentConfirmedNotificationHandler: NotificationHandler = {
 
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for payment notifications');
+    const admin = getAdmin();
 
-    const { data: fromUser } = await supabase
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
@@ -421,7 +513,7 @@ export const paymentConfirmedNotificationHandler: NotificationHandler = {
     const requesterName = fromUser?.full_name || fromUser?.username || 'Someone';
     const message = `${requesterName} confirmed your payment for ${extraData?.class_name || 'booking'}.`;
 
-    await supabase.from('notifications').insert({
+    const { error } = await admin.from('notifications').insert({
       type: 'payment_confirmed',
       message,
       from_user_id: fromUserId,
@@ -431,6 +523,8 @@ export const paymentConfirmedNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'completed'
     });
+
+    if (error) throw error;
   },
 
   formatMessage: ({ fromUser, extraData }) => {
@@ -450,6 +544,7 @@ export const notificationHandlers: Record<NotificationType, NotificationHandler>
   payment_confirmed: paymentConfirmedNotificationHandler,
   like: likeNotificationHandler,
   comment: commentNotificationHandler,
+  mention: mentionNotificationHandler,
   studio_update: {
     type: 'studio_update',
     create: async () => { },
@@ -482,7 +577,7 @@ export class NotificationService {
   }
 
   static async getUserNotifications(userId: string, limit = 50): Promise<BaseNotification[]> {
-    const { data: notifications, error } = await supabase
+    const { data: notifications, error } = await getAdmin()
       .from('notifications')
       .select('*')
       .eq('to_user_id', userId)
@@ -497,7 +592,7 @@ export class NotificationService {
   }
 
   static async markAsRead(notificationId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await getAdmin()
       .from('notifications')
       .update({ is_read: true })
       .eq('id', notificationId);
@@ -508,7 +603,7 @@ export class NotificationService {
   }
 
   static async deleteNotification(notificationId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await getAdmin()
       .from('notifications')
       .delete()
       .eq('id', notificationId);
@@ -538,11 +633,7 @@ export class NotificationService {
       updateData.message = updatedMessage;
     }
 
-    if (!supabaseAdmin) {
-      throw new Error('Supabase admin client not initialized');
-    }
-
-    const { error } = await supabaseAdmin
+    const { error } = await getAdmin()
       .from('notifications')
       .update(updateData)
       .eq('id', notificationId);

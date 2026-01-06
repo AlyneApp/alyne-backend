@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -112,24 +112,29 @@ export async function POST(request: NextRequest) {
       const followerName = currentUserProfile?.full_name || currentUserProfile?.username || 'Someone';
 
       // Create notification for the user being followed
-      const notificationMessage = shouldAutoApprove 
+      const notificationMessage = shouldAutoApprove
         ? `${followerName} is now following you. Follow back?`
         : `${followerName} requested to follow you`;
 
-      const { error: notificationError } = await supabase
-        .from('notifications')
-        .insert({
-          type: shouldAutoApprove ? 'follow' : 'follow_request',
-          message: notificationMessage,
-          from_user_id: user.id,
-          to_user_id: user_id,
-          related_id: newFriendship.id,
-          is_read: false
-        });
+      // Use admin client to bypass RLS for creating notifications for other users
+      if (supabaseAdmin) {
+        const { error: notificationError } = await supabaseAdmin
+          .from('notifications')
+          .insert({
+            type: shouldAutoApprove ? 'follow' : 'follow_request',
+            message: notificationMessage,
+            from_user_id: user.id,
+            to_user_id: user_id,
+            related_id: newFriendship.id,
+            is_read: false
+          });
 
-      if (notificationError) {
-        console.error('Error creating notification:', notificationError);
-        // Don't fail the request if notification creation fails
+        if (notificationError) {
+          console.error('Error creating notification:', notificationError);
+          // Don't fail the request if notification creation fails
+        }
+      } else {
+        console.warn('supabaseAdmin not available, skipping notification creation');
       }
 
       // Check new status after adding
