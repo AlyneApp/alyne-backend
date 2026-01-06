@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     // Get top 4 users the current user doesn't follow
     let usersQuery = supabase
       .from('users')
-      .select('id, username, full_name, avatar_url, followers_count, is_instructor')
+      .select('id, username, full_name, avatar_url, followers_count, is_instructor, activity_feed!activity_feed_user_id_fkey(count)')
       .neq('id', user.id);
 
     if (followedIds.length > 0) {
@@ -167,7 +167,27 @@ export async function POST(request: NextRequest) {
       usersQuery = usersQuery.not('id', 'in', `(${followedIds.map(id => `"${id}"`).join(',')})`);
     }
 
-    const { data: users, error: usersError } = await usersQuery.limit(4).order('followers_count', { ascending: false });
+
+    // Fetch more candidates to filter by post count
+    const { data: candidates, error: usersError } = await usersQuery
+      .limit(100)
+      .order('followers_count', { ascending: false });
+
+    // Filter for users with at least 3 posts and sort by post count
+    // @ts-ignore - Supabase types for joined count can be tricky
+    const users = candidates
+      ?.filter(u => {
+        const postCount = u.activity_feed?.[0]?.count || 0;
+        return postCount >= 3;
+      })
+      .sort((a, b) => {
+        // @ts-ignore
+        const countA = a.activity_feed?.[0]?.count || 0;
+        // @ts-ignore
+        const countB = b.activity_feed?.[0]?.count || 0;
+        return countB - countA;
+      })
+      .slice(0, 4) || [];
 
     if (usersError) {
       console.error('❌ Error fetching recommended users:', usersError);
