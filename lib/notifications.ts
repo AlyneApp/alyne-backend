@@ -14,7 +14,9 @@ export type NotificationType =
   | 'mention'
   | 'studio_update'
   | 'class_reminder'
-  | 'achievement';
+  | 'achievement'
+  | 'milestone'
+  | 'streak';
 
 // Base notification interface
 export interface BaseNotification {
@@ -295,7 +297,6 @@ async function getActivityName(activityId: string): Promise<string> {
 
   const extraData = activity.extra_data as any || {};
   const activityType = extraData.activity_type || activity.type;
-
   // Get class name or activity name
   if (extraData.class_name && !['Custom', 'Custom Class', 'Activity'].includes(extraData.class_name)) {
     return extraData.class_name;
@@ -533,6 +534,70 @@ export const paymentConfirmedNotificationHandler: NotificationHandler = {
   }
 };
 
+// Milestone notification handler
+export const milestoneNotificationHandler: NotificationHandler = {
+  type: 'milestone',
+
+  create: async ({ toUserId, extraData }) => {
+    const admin = getAdmin();
+
+    const count = extraData?.count || 10;
+    const studioName = extraData?.studioName || 'this studio';
+    const message = `You've completed ${count} classes at ${studioName}!`;
+
+    const { error } = await admin.from('notifications').insert({
+      type: 'milestone',
+      message,
+      from_user_id: null,
+      to_user_id: toUserId,
+      related_id: extraData?.studioId as string || null,
+      extra_data: extraData || {},
+      is_read: false,
+      status: 'completed'
+    });
+
+    if (error) throw error;
+  },
+
+  formatMessage: ({ extraData }) => {
+    const count = extraData?.count || 10;
+    const studioName = extraData?.studioName || 'this studio';
+    return `You've completed ${count} classes at ${studioName}!`;
+  }
+};
+
+// Streak notification handler
+export const streakNotificationHandler: NotificationHandler = {
+  type: 'streak',
+
+  create: async ({ toUserId, extraData }) => {
+    const admin = getAdmin();
+
+    const count = extraData?.count || 7;
+    const activityName = extraData?.activityName || 'activities';
+    const message = `Day ${count} in a row of ${activityName}—and that's on consistency with purpose.`;
+
+    const { error } = await admin.from('notifications').insert({
+      type: 'streak',
+      message,
+      from_user_id: null,
+      to_user_id: toUserId,
+      related_id: null,
+      extra_data: extraData || {},
+      is_read: false,
+      status: 'completed'
+    });
+
+    if (error) throw error;
+  },
+
+  formatMessage: ({ extraData }) => {
+    const count = extraData?.count || 7;
+    const activityName = extraData?.activityName || 'activities';
+    return `Day ${count} in a row of ${activityName}—and that's on consistency with purpose.`;
+  }
+};
+
 // Registry of all notification handlers
 export const notificationHandlers: Record<NotificationType, NotificationHandler> = {
   follow_request: followNotificationHandler,
@@ -559,7 +624,9 @@ export const notificationHandlers: Record<NotificationType, NotificationHandler>
     type: 'achievement',
     create: async () => { },
     formatMessage: () => 'Achievement unlocked'
-  }
+  },
+  milestone: milestoneNotificationHandler,
+  streak: streakNotificationHandler
 };
 
 // Main notification service
