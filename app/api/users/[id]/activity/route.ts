@@ -727,6 +727,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
           let activityTerm = 'workout';
           const isTreatment = activityType === 'treatment';
           const isEvent = activityType === 'event';
+          const isPractice = activityType === 'practice';
 
           // Only use "workout" for movement activities, otherwise just the activity name
           if (activityType !== 'movement') {
