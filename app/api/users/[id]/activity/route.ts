@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 interface ClassActivityDetails {
   class_name: string;
@@ -60,23 +60,27 @@ function getStudioName(activity: ActivityFeedItem): string {
 async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: boolean = false): Promise<FormattedActivity> {
   const username = isOwnActivity ? 'You' : (activity.users?.full_name || activity.users?.username || 'Someone');
   const metadata = activity.extra_data || {};
-  
+
   switch (activity.type) {
     case 'class_checkin':
-      if (activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string' && 
-          !['Custom', 'Custom Class', 'Activity'].includes(metadata.class_name)) {
+      // For treatments and practices, skip this block and use activity_name instead of class_name
+      const activityTypeValue = (metadata as any)?.activity_type;
+      const shouldUseActivityName = activityTypeValue === 'treatment' || activityTypeValue === 'practice';
+
+      if (!shouldUseActivityName && activity.studios && 'class_name' in metadata && typeof metadata.class_name === 'string' &&
+        !['Custom', 'Custom Class', 'Activity'].includes(metadata.class_name)) {
         const classMetadata = metadata as any;
-        
+
         if (activity.collaboration_partners && activity.collaboration_partners.length > 0) {
           const { data: partnerUsers } = await supabase
             .from('users')
             .select('full_name, username')
             .in('id', activity.collaboration_partners);
-          
-          const partnerNames = partnerUsers?.map(user => 
+
+          const partnerNames = partnerUsers?.map(user =>
             user.full_name || user.username || 'Someone'
           ) || [];
-          
+
           if (partnerNames.length === 1) {
             if (isOwnActivity) {
               // With Another User (You + Others)
@@ -270,32 +274,33 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
           }
         }
       }
-      
+
       if ('activity_name' in metadata || 'activity_type' in metadata) {
         const activityName = String((metadata as Record<string, unknown>).activity_name || (metadata as Record<string, unknown>).activity_type || 'a workout');
         const classMetadata = metadata as any;
-        
+
         if (activity.collaboration_partners && activity.collaboration_partners.length > 0) {
-          const { data: partnerUsers } = await supabase
+          const { data: partnerUsers } = await (supabaseAdmin || supabase)
             .from('users')
             .select('full_name, username')
             .in('id', activity.collaboration_partners);
-          
-          const partnerNames = partnerUsers?.map(user => 
+
+          const partnerNames = partnerUsers?.map(user =>
             user.full_name || user.username || 'Someone'
           ) || [];
-          
+
           // Determine the correct terminology based on activity_type
           const activityType = metadata.activity_type || 'movement';
           let activityTerm = 'workout';
+          const isPractice = activityType === 'practice';
           const isTreatment = activityType === 'treatment';
           const isEvent = activityType === 'event';
-          
+
           // Only use "workout" for movement activities, otherwise just the activity name
           if (activityType !== 'movement') {
             activityTerm = '';
           }
-          
+
           if (partnerNames.length === 1) {
             if (isOwnActivity) {
               if (isEvent) {
@@ -312,17 +317,38 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
                   schedule: null
                 };
               } else if (isTreatment) {
-                // Treatment format: "You did a [Treatment Name] at [Location] with [Partner]"
+                // Treatment format: "You and [Partner] did a [Treatment Name] at [Location] with [Instructor]"
+                const location = getStudioName(activity);
+                const hasLocation = location && location !== 'Unknown Studio';
+                return {
+                  messageParts: [
+                    { text: 'You and ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (isPractice) {
+                // Practice format: "You and [Partner] did a [ActivityName] at [Location] with [Instructor]"
                 const location = getStudioName(activity);
                 const hasLocation = location && location.trim() !== '';
                 return {
                   messageParts: [
-                    { text: 'You did a ', bold: false, clickable: false },
+                    { text: 'You and ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
                     { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
                     { text: hasLocation ? location : '', bold: true, clickable: true },
-                    { text: ' with ', bold: false, clickable: false },
-                    { text: `${partnerNames[0]}`, bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                     { text: '.', bold: false, clickable: false }
                   ],
                   type: activityName,
@@ -361,17 +387,38 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
                   schedule: null
                 };
               } else if (isTreatment) {
-                // Treatment format: "[Username] did a [Treatment Name] at [Location] with [Partner]"
+                // Treatment format: "[Username] and [Partner] did a [Treatment Name] at [Location] with [Instructor]"
+                const location = getStudioName(activity);
+                const hasLocation = location && location !== 'Unknown Studio';
+                return {
+                  messageParts: [
+                    { text: `${username} and `, bold: false, clickable: false },
+                    { text: `${partnerNames[0]} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (isPractice) {
+                // Practice format: "[Username] and [Partner] did a [ActivityName] at [Location] with [Instructor]"
                 const location = getStudioName(activity);
                 const hasLocation = location && location.trim() !== '';
                 return {
                   messageParts: [
-                    { text: `${username} did a `, bold: false, clickable: false },
+                    { text: `${username} and `, bold: false, clickable: false },
+                    { text: `${partnerNames[0]} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
                     { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
                     { text: hasLocation ? location : '', bold: true, clickable: true },
-                    { text: ' with ', bold: false, clickable: false },
-                    { text: `${partnerNames[0]}`, bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                     { text: '.', bold: false, clickable: false }
                   ],
                   type: activityName,
@@ -410,17 +457,38 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
                   schedule: null
                 };
               } else if (isTreatment) {
-                // Treatment format: "You did a [Treatment Name] at [Location] with [Partner1, Partner2]"
+                // Treatment format: "You, [Partner1], and [Partner2] did a [Treatment Name] at [Location] with [Instructor]"
+                const location = getStudioName(activity);
+                const hasLocation = location && location !== 'Unknown Studio';
+                return {
+                  messageParts: [
+                    { text: 'You, ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]}, and ${partnerNames[1]} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (isPractice) {
+                // Practice format: "You, [Partner1], and [Partner2] did a [ActivityName] at [Location] with [Instructor]"
                 const location = getStudioName(activity);
                 const hasLocation = location && location.trim() !== '';
                 return {
                   messageParts: [
-                    { text: 'You did a ', bold: false, clickable: false },
+                    { text: 'You, ', bold: false, clickable: false },
+                    { text: `${partnerNames[0]}, and ${partnerNames[1]} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
                     { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
                     { text: hasLocation ? location : '', bold: true, clickable: true },
-                    { text: ' with ', bold: false, clickable: false },
-                    { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                     { text: '.', bold: false, clickable: false }
                   ],
                   type: activityName,
@@ -459,17 +527,37 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
                   schedule: null
                 };
               } else if (isTreatment) {
-                // Treatment format: "[Username] did a [Treatment Name] at [Location] with [Partner1, Partner2]"
+                // Treatment format: "[Username], [Partner1], and [Partner2] did a [Treatment Name] at [Location] with [Instructor]"
+                const location = getStudioName(activity);
+                const hasLocation = location && location !== 'Unknown Studio';
+                return {
+                  messageParts: [
+                    { text: `${username}, `, bold: true, clickable: true },
+                    { text: `${partnerNames[0]}, and ${partnerNames[1]} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (isPractice) {
                 const location = getStudioName(activity);
                 const hasLocation = location && location.trim() !== '';
                 return {
                   messageParts: [
-                    { text: `${username} did a `, bold: false, clickable: false },
+                    { text: `${username}, `, bold: true, clickable: true },
+                    { text: `${partnerNames[0]}, and ${partnerNames[1]} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
                     { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
                     { text: hasLocation ? location : '', bold: true, clickable: true },
-                    { text: ' with ', bold: false, clickable: false },
-                    { text: `${partnerNames[0]}, ${partnerNames[1]}`, bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                     { text: '.', bold: false, clickable: false }
                   ],
                   type: activityName,
@@ -510,17 +598,37 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
                   schedule: null
                 };
               } else if (isTreatment) {
-                // Treatment format: "@@ a [Treatment Name] at [Location] with [Partner1, Partner2, and X others]"
+                // Treatment format: "You, [Partner1], [Partner2], and X others did a [Treatment Name] at [Location] with [Instructor]"
+                const location = getStudioName(activity);
+                const hasLocation = location && location !== 'Unknown Studio';
+                return {
+                  messageParts: [
+                    { text: 'You, ', bold: false, clickable: false },
+                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (isPractice) {
                 const location = getStudioName(activity);
                 const hasLocation = location && location.trim() !== '';
                 return {
                   messageParts: [
-                    { text: 'You did a ', bold: false, clickable: false },
+                    { text: 'You, ', bold: false, clickable: false },
+                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
                     { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
                     { text: hasLocation ? location : '', bold: true, clickable: true },
-                    { text: ' with ', bold: false, clickable: false },
-                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                     { text: '.', bold: false, clickable: false }
                   ],
                   type: activityName,
@@ -559,17 +667,37 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
                   schedule: null
                 };
               } else if (isTreatment) {
-                // Treatment format: "[Username] did a [Treatment Name] at [Location] with [Partner1, Partner2, and X others]"
+                // Treatment format: "[Username], [Partner1], [Partner2], and X others did a [Treatment Name] at [Location] with [Instructor]"
+                const location = getStudioName(activity);
+                const hasLocation = location && location !== 'Unknown Studio';
+                return {
+                  messageParts: [
+                    { text: `${username}, `, bold: true, clickable: true },
+                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
+                    { text: `${activityName}`, bold: true, clickable: true },
+                    { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                    { text: hasLocation ? location : '', bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                    { text: '.', bold: false, clickable: false }
+                  ],
+                  type: activityName,
+                  schedule: null
+                };
+              } else if (isPractice) {
                 const location = getStudioName(activity);
                 const hasLocation = location && location.trim() !== '';
                 return {
                   messageParts: [
-                    { text: `${username} did a `, bold: false, clickable: false },
+                    { text: `${username}, `, bold: true, clickable: true },
+                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''} `, bold: true, clickable: true },
+                    { text: 'did a ', bold: false, clickable: false },
                     { text: `${activityName}`, bold: true, clickable: true },
                     { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
                     { text: hasLocation ? location : '', bold: true, clickable: true },
-                    { text: ' with ', bold: false, clickable: false },
-                    { text: `${firstTwo}, and ${remaining} other${remaining > 1 ? 's' : ''}`, bold: true, clickable: true },
+                    { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                    { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
                     { text: '.', bold: false, clickable: false }
                   ],
                   type: activityName,
@@ -599,12 +727,12 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
           let activityTerm = 'workout';
           const isTreatment = activityType === 'treatment';
           const isEvent = activityType === 'event';
-          
+
           // Only use "workout" for movement activities, otherwise just the activity name
           if (activityType !== 'movement') {
             activityTerm = '';
           }
-          
+
           if (isOwnActivity) {
             if (isEvent) {
               // Event format: "You attended [Event Name]"
@@ -618,7 +746,24 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
                 schedule: null
               };
             } else if (isTreatment) {
-              // Treatment format: "You did a [Treatment Name] at [Location] with [Provider]"
+              // Treatment format: "You did a [Treatment Name] at [Location] with [Instructor]"
+              const location = getStudioName(activity);
+              const hasLocation = location && location !== 'Unknown Studio';
+              return {
+                messageParts: [
+                  { text: 'You did a ', bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                  { text: hasLocation ? location : '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            } else if (isPractice) {
+              // Practice format: "You did a [ActivityName] at [Location] with [Instructor]"
               const location = getStudioName(activity);
               const hasLocation = location && location.trim() !== '';
               return {
@@ -663,7 +808,24 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
                 schedule: null
               };
             } else if (isTreatment) {
-              // Treatment format: "[Username] did a [Treatment Name] at [Location] with [Provider]"
+              // Treatment format: "[Username] did a [Treatment Name] at [Location] with [Instructor]"
+              const location = getStudioName(activity);
+              const hasLocation = location && location !== 'Unknown Studio';
+              return {
+                messageParts: [
+                  { text: `${username} did a `, bold: false, clickable: false },
+                  { text: `${activityName}`, bold: true, clickable: true },
+                  { text: hasLocation ? ` at ` : '', bold: false, clickable: false },
+                  { text: hasLocation ? location : '', bold: true, clickable: true },
+                  { text: classMetadata.instructor_name ? ` with ` : '', bold: false, clickable: false },
+                  { text: classMetadata.instructor_name || '', bold: ('instructor_id' in metadata && metadata.instructor_id) ? true : false, clickable: ('instructor_id' in metadata && metadata.instructor_id) ? true : false },
+                  { text: '.', bold: false, clickable: false }
+                ],
+                type: activityName,
+                schedule: null
+              };
+            } else if (isPractice) {
+              // Practice format: "[Username] did a [ActivityName] at [Location] with [Instructor]"
               const location = getStudioName(activity);
               const hasLocation = location && location.trim() !== '';
               return {
@@ -699,7 +861,7 @@ async function formatActivityMessage(activity: ActivityFeedItem, isOwnActivity: 
         }
       }
       break;
-      
+
     case 'studio_favorite':
       if (activity.studios) {
         return {
@@ -809,15 +971,15 @@ export async function GET(
 ) {
   try {
     const authHeader = request.headers.get('authorization');
-    
+
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
     }
 
     const token = authHeader.replace('Bearer ', '');
-    
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
@@ -825,7 +987,7 @@ export async function GET(
     const { id } = await params;
     const targetUserId = id;
     const isOwnActivity = user.id === targetUserId;
-    
+
     // Check if current user can view the target user's content
     if (!isOwnActivity) {
       // Get target user's privacy settings
@@ -849,16 +1011,16 @@ export async function GET(
           .single();
 
         const isFollowing = !!followData?.approved;
-        
+
         if (!isFollowing) {
-          return NextResponse.json({ 
+          return NextResponse.json({
             error: 'This account is private. Follow to see their activity.',
-            can_view_content: false 
+            can_view_content: false
           }, { status: 403 });
         }
       }
     }
-    
+
     // Get pagination parameters
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -924,7 +1086,7 @@ export async function GET(
     const transformedActivities = await Promise.all((activities as unknown as ActivityFeedItem[])?.map(async (activity) => {
       const formatted = await formatActivityMessage(activity, isOwnActivity);
       const extraData = activity.extra_data || {};
-      
+
       // Debug logging for images
       if ((extraData as any).photos || (extraData as any).image_url) {
         console.log('📸 User Activity API - Activity with images:', {
@@ -936,7 +1098,7 @@ export async function GET(
           photos: (extraData as any).photos
         });
       }
-      
+
       return {
         id: activity.id,
         userId: activity.user_id,
@@ -956,7 +1118,7 @@ export async function GET(
         commentCount: activity.comment_count || 0,
         activity_type: activity.type,
         collaborationPartners: activity.collaboration_partners || [],
-        partnerNames: activity.collaboration_partners && activity.collaboration_partners.length > 0 ? 
+        partnerNames: activity.collaboration_partners && activity.collaboration_partners.length > 0 ?
           (await supabase
             .from('users')
             .select('full_name, username, id')
@@ -965,10 +1127,10 @@ export async function GET(
               id: user.id,
               name: user.full_name || user.username || 'Someone'
             })) || [])) : [],
-        image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } : 
-               'photos' in extraData && Array.isArray(extraData.photos) && extraData.photos.length > 0 ? { uri: extraData.photos[0] } : undefined,
-        photos: 'photos' in extraData && Array.isArray(extraData.photos) && extraData.photos.length > 0 
-          ? extraData.photos.map((url: string) => ({ uri: url })) 
+        image: 'image_url' in extraData && extraData.image_url ? { uri: extraData.image_url } :
+          'photos' in extraData && Array.isArray(extraData.photos) && extraData.photos.length > 0 ? { uri: extraData.photos[0] } : undefined,
+        photos: 'photos' in extraData && Array.isArray(extraData.photos) && extraData.photos.length > 0
+          ? extraData.photos.map((url: string) => ({ uri: url }))
           : undefined,
         routeData: 'route_data' in extraData ? extraData.route_data : undefined,
         distance: 'distance' in extraData ? extraData.distance : undefined,
