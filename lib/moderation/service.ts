@@ -11,7 +11,7 @@ export async function moderateActivityFeedEntry(activityId: string): Promise<voi
     // Fetch the activity
     const { data: activity, error: fetchError } = await supabaseAdmin!
       .from('activity_feed')
-      .select('id, user_id, type, extra_data, photos')
+      .select('id, user_id, type, extra_data')
       .eq('id', activityId)
       .single();
 
@@ -32,16 +32,16 @@ export async function moderateActivityFeedEntry(activityId: string): Promise<voi
     };
 
     // Get image URLs if photos exist
-    const imageUrls: string[] = [];
-    if (extraData.photos && Array.isArray(extraData.photos)) {
-      for (const photo of extraData.photos) {
-        if (typeof photo === 'string') {
-          imageUrls.push(photo);
-        } else if (photo && typeof photo === 'object' && photo.uri) {
-          imageUrls.push(photo.uri);
-        }
-      }
-    }
+    // const imageUrls: string[] = [];
+    // if (extraData.photos && Array.isArray(extraData.photos)) {
+    //   for (const photo of extraData.photos) {
+    //     if (typeof photo === 'string') {
+    //       imageUrls.push(photo);
+    //     } else if (photo && typeof photo === 'object' && photo.uri) {
+    //       imageUrls.push(photo.uri);
+    //     }
+    //   }
+    // }
 
     // Always run keyword check first (fastest and most reliable)
     const { checkActivityContent } = await import('./keywords');
