@@ -1,8 +1,7 @@
-import { supabase } from './supabase';
 import { supabaseAdmin } from './supabase';
 
 // Notification type definitions
-export type NotificationType = 
+export type NotificationType =
   | 'follow_request'
   | 'follow'
   | 'follow_approved'
@@ -12,9 +11,12 @@ export type NotificationType =
   | 'payment_confirmed'
   | 'like'
   | 'comment'
+  | 'mention'
   | 'studio_update'
   | 'class_reminder'
-  | 'achievement';
+  | 'achievement'
+  | 'milestone'
+  | 'streak';
 
 // Base notification interface
 export interface BaseNotification {
@@ -72,23 +74,32 @@ export interface NotificationAction {
   handler: (notificationId: string) => Promise<void>;
 }
 
+// Helper to ensure admin client
+function getAdmin() {
+  if (!supabaseAdmin) {
+    throw new Error('Supabase admin client not initialized. Check SUPABASE_SERVICE_ROLE_KEY.');
+  }
+  return supabaseAdmin;
+}
+
 // Follow notification handler
 export const followNotificationHandler: NotificationHandler = {
   type: 'follow_request',
-  
+
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for follow notifications');
-    
-    const { data: fromUser } = await supabase
+    const admin = getAdmin();
+
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
       .single();
-    
+
     const followerName = fromUser?.full_name || fromUser?.username || 'Someone';
     const message = `${followerName} requested to follow you`;
-    
-    await supabase.from('notifications').insert({
+
+    const { error } = await admin.from('notifications').insert({
       type: 'follow_request',
       message,
       from_user_id: fromUserId,
@@ -98,13 +109,15 @@ export const followNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'pending'
     });
+
+    if (error) throw error;
   },
-  
+
   formatMessage: ({ fromUser }) => {
     const name = fromUser?.full_name || fromUser?.username || 'Someone';
     return `${name} requested to follow you`;
   },
-  
+
   getActions: () => [
     {
       id: 'approve',
@@ -129,22 +142,23 @@ export const followNotificationHandler: NotificationHandler = {
 
 // Follow approved notification handler
 export const followApprovedNotificationHandler: NotificationHandler = {
-  type: 'follow',
-  
+  type: 'follow_request',
+
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for follow notifications');
-    
-    const { data: fromUser } = await supabase
+    const admin = getAdmin();
+
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
       .single();
-    
+
     const followerName = fromUser?.full_name || fromUser?.username || 'Someone';
     const message = `${followerName} is now following you. Follow back?`;
-    
-    await supabase.from('notifications').insert({
-      type: 'follow',
+
+    const { error } = await admin.from('notifications').insert({
+      type: 'follow_request',
       message,
       from_user_id: fromUserId,
       to_user_id: toUserId,
@@ -153,13 +167,15 @@ export const followApprovedNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'completed'
     });
+
+    if (error) throw error;
   },
-  
+
   formatMessage: ({ fromUser }) => {
     const name = fromUser?.full_name || fromUser?.username || 'Someone';
     return `${name} is now following you. Follow back?`;
   },
-  
+
   getActions: () => [
     {
       id: 'follow_back',
@@ -176,20 +192,21 @@ export const followApprovedNotificationHandler: NotificationHandler = {
 // Collaboration notification handler
 export const collaborationNotificationHandler: NotificationHandler = {
   type: 'collaboration_request',
-  
+
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for collaboration notifications');
-    
-    const { data: fromUser } = await supabase
+    const admin = getAdmin();
+
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
       .single();
-    
+
     const requesterName = fromUser?.full_name || fromUser?.username || 'Someone';
     const message = `${requesterName} tagged you in a workout`;
-    
-    await supabase.from('notifications').insert({
+
+    const { error } = await admin.from('notifications').insert({
       type: 'collaboration_request',
       message,
       from_user_id: fromUserId,
@@ -199,13 +216,15 @@ export const collaborationNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'pending'
     });
+
+    if (error) throw error;
   },
-  
+
   formatMessage: ({ fromUser }) => {
     const name = fromUser?.full_name || fromUser?.username || 'Someone';
     return `${name} tagged you in a workout`;
   },
-  
+
   getActions: () => [
     {
       id: 'approve',
@@ -231,20 +250,21 @@ export const collaborationNotificationHandler: NotificationHandler = {
 // Collaboration approved notification handler
 export const collaborationApprovedNotificationHandler: NotificationHandler = {
   type: 'collaboration_approved',
-  
+
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for collaboration notifications');
-    
-    const { data: fromUser } = await supabase
+    const admin = getAdmin();
+
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
       .single();
-    
+
     const collaboratorName = fromUser?.full_name || fromUser?.username || 'Someone';
     const message = `You're collaborating on a workout post with ${collaboratorName}`;
-    
-    await supabase.from('notifications').insert({
+
+    const { error } = await admin.from('notifications').insert({
       type: 'collaboration_approved',
       message,
       from_user_id: fromUserId,
@@ -254,8 +274,10 @@ export const collaborationApprovedNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'completed'
     });
+
+    if (error) throw error;
   },
-  
+
   formatMessage: ({ fromUser }) => {
     const name = fromUser?.full_name || fromUser?.username || 'Someone';
     return `You're collaborating on a workout post with ${name}`;
@@ -264,60 +286,61 @@ export const collaborationApprovedNotificationHandler: NotificationHandler = {
 
 // Helper function to get activity name for notifications
 async function getActivityName(activityId: string): Promise<string> {
-  const { data: activity } = await supabase
+  const admin = getAdmin();
+  const { data: activity } = await admin
     .from('activity_feed')
     .select('type, extra_data')
     .eq('id', activityId)
     .single();
-  
+
   if (!activity) return 'post';
-  
+
   const extraData = activity.extra_data as any || {};
   const activityType = extraData.activity_type || activity.type;
-  
   // Get class name or activity name
   if (extraData.class_name && !['Custom', 'Custom Class', 'Activity'].includes(extraData.class_name)) {
     return extraData.class_name;
   }
-  
+
   // For practice activities, use service name
   if (activityType === 'practice' && extraData.service_name) {
     return extraData.service_name;
   }
-  
+
   // Default to activity type or "post"
   if (activityType === 'movement') {
     return 'Class';
   } else if (activityType === 'practice') {
-    return 'Service';
+    return 'Practice';
   } else if (activityType === 'event') {
     return 'Event';
   } else if (activityType === 'treatment') {
     return 'Treatment';
   }
-  
+
   return 'post';
 }
 
 // Like notification handler
 export const likeNotificationHandler: NotificationHandler = {
   type: 'like',
-  
+
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for like notifications');
     if (!relatedId) throw new Error('relatedId (activity_id) is required for like notifications');
-    
-    const { data: fromUser } = await supabase
+    const admin = getAdmin();
+
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
       .single();
-    
+
     const likerName = fromUser?.full_name || fromUser?.username || 'Someone';
     const activityName = await getActivityName(relatedId);
     const message = `${likerName} liked your ${activityName} post.`;
-    
-    await supabase.from('notifications').insert({
+
+    const { error } = await admin.from('notifications').insert({
       type: 'like',
       message,
       from_user_id: fromUserId,
@@ -327,8 +350,10 @@ export const likeNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'completed'
     });
+
+    if (error) throw error;
   },
-  
+
   formatMessage: ({ fromUser }) => {
     const name = fromUser?.full_name || fromUser?.username || 'Someone';
     return `${name} liked your post`;
@@ -338,56 +363,121 @@ export const likeNotificationHandler: NotificationHandler = {
 // Comment notification handler
 export const commentNotificationHandler: NotificationHandler = {
   type: 'comment',
-  
+
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for comment notifications');
     if (!relatedId) throw new Error('relatedId (activity_id) is required for comment notifications');
-    
-    const { data: fromUser } = await supabase
+    const admin = getAdmin();
+
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
       .single();
-    
+
     const commenterName = fromUser?.full_name || fromUser?.username || 'Someone';
     const activityName = await getActivityName(relatedId);
     const message = `${commenterName} commented on your ${activityName} post. Reply?`;
-    
-    await supabase.from('notifications').insert({
+
+    // Fetch activity owner ID
+    const { data: activity } = await admin
+      .from('activity_feed')
+      .select('user_id')
+      .eq('id', relatedId)
+      .single();
+
+    const { error } = await admin.from('notifications').insert({
       type: 'comment',
       message,
       from_user_id: fromUserId,
       to_user_id: toUserId,
       related_id: relatedId,
-      extra_data: extraData || {},
+      extra_data: {
+        ...extraData,
+        activityName,
+        activityOwnerId: activity?.user_id
+      },
       is_read: false,
       status: 'completed'
     });
+
+    if (error) throw error;
   },
-  
+
   formatMessage: ({ fromUser }) => {
     const name = fromUser?.full_name || fromUser?.username || 'Someone';
     return `${name} commented on your post`;
   }
 };
 
-// Payment confirmation notification handler
-export const paymentConfirmationNotificationHandler: NotificationHandler = {
-  type: 'payment_confirmation',
-  
+// Mention notification handler
+export const mentionNotificationHandler: NotificationHandler = {
+  type: 'mention',
+
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
-    if (!fromUserId) throw new Error('fromUserId is required for payment notifications');
-    
-    const { data: fromUser } = await supabase
+    if (!fromUserId) throw new Error('fromUserId is required for mention notifications');
+    if (!relatedId) throw new Error('relatedId (activity_id) is required for mention notifications');
+    const admin = getAdmin();
+
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
       .single();
-    
+
+    const commenterName = fromUser?.full_name || fromUser?.username || 'Someone';
+    const activityName = await getActivityName(relatedId);
+    const message = `${commenterName} mentioned you in a comment on a ${activityName} post.`;
+
+    // Fetch activity owner ID
+    const { data: activity } = await admin
+      .from('activity_feed')
+      .select('user_id')
+      .eq('id', relatedId)
+      .single();
+
+    const { error } = await admin.from('notifications').insert({
+      type: 'mention',
+      message,
+      from_user_id: fromUserId,
+      to_user_id: toUserId,
+      related_id: relatedId,
+      extra_data: {
+        ...extraData,
+        activityName,
+        activityOwnerId: activity?.user_id
+      },
+      is_read: false,
+      status: 'completed'
+    });
+
+    if (error) throw error;
+  },
+
+  formatMessage: ({ fromUser }) => {
+    const name = fromUser?.full_name || fromUser?.username || 'Someone';
+    return `${name} mentioned you in a comment`;
+  }
+};
+
+// Payment confirmation notification handler
+export const paymentConfirmationNotificationHandler: NotificationHandler = {
+  type: 'payment_confirmation',
+
+  create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
+    if (!fromUserId) throw new Error('fromUserId is required for payment notifications');
+    const admin = getAdmin();
+
+    const { data: fromUser } = await admin
+      .from('users')
+      .select('username, full_name')
+      .eq('id', fromUserId)
+      .single();
+
     const requesterName = fromUser?.full_name || fromUser?.username || 'Someone';
     const message = `${requesterName} wants to claim your ${extraData?.class_name || 'booking'}. Confirm payment?`;
-    
-    await supabase.from('notifications').insert({
+
+    const { error } = await admin.from('notifications').insert({
       type: 'payment_confirmation',
       message,
       from_user_id: fromUserId,
@@ -397,8 +487,10 @@ export const paymentConfirmationNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'pending'
     });
+
+    if (error) throw error;
   },
-  
+
   formatMessage: ({ fromUser, extraData }) => {
     const name = fromUser?.full_name || fromUser?.username || 'Someone';
     return `${name} wants to claim your ${extraData?.class_name || 'booking'}. Confirm payment?`;
@@ -408,20 +500,21 @@ export const paymentConfirmationNotificationHandler: NotificationHandler = {
 // Payment confirmed notification handler
 export const paymentConfirmedNotificationHandler: NotificationHandler = {
   type: 'payment_confirmed',
-  
+
   create: async ({ fromUserId, toUserId, relatedId, extraData }) => {
     if (!fromUserId) throw new Error('fromUserId is required for payment notifications');
-    
-    const { data: fromUser } = await supabase
+    const admin = getAdmin();
+
+    const { data: fromUser } = await admin
       .from('users')
       .select('username, full_name')
       .eq('id', fromUserId)
       .single();
-    
+
     const requesterName = fromUser?.full_name || fromUser?.username || 'Someone';
     const message = `${requesterName} confirmed your payment for ${extraData?.class_name || 'booking'}.`;
-    
-    await supabase.from('notifications').insert({
+
+    const { error } = await admin.from('notifications').insert({
       type: 'payment_confirmed',
       message,
       from_user_id: fromUserId,
@@ -431,11 +524,77 @@ export const paymentConfirmedNotificationHandler: NotificationHandler = {
       is_read: false,
       status: 'completed'
     });
+
+    if (error) throw error;
   },
-  
+
   formatMessage: ({ fromUser, extraData }) => {
     const name = fromUser?.full_name || fromUser?.username || 'Someone';
     return `${name} confirmed your payment for ${extraData?.class_name || 'booking'}.`;
+  }
+};
+
+// Milestone notification handler
+export const milestoneNotificationHandler: NotificationHandler = {
+  type: 'milestone',
+
+  create: async ({ toUserId, extraData }) => {
+    const admin = getAdmin();
+
+    const count = extraData?.count || 10;
+    const studioName = extraData?.studioName || 'this studio';
+    const message = `You've completed ${count} classes at ${studioName}!`;
+
+    const { error } = await admin.from('notifications').insert({
+      type: 'milestone',
+      message,
+      from_user_id: null,
+      to_user_id: toUserId,
+      related_id: extraData?.studioId as string || null,
+      extra_data: extraData || {},
+      is_read: false,
+      status: 'completed'
+    });
+
+    if (error) throw error;
+  },
+
+  formatMessage: ({ extraData }) => {
+    const count = extraData?.count || 10;
+    const studioName = extraData?.studioName || 'this studio';
+    return `You've completed ${count} classes at ${studioName}!`;
+  }
+};
+
+// Streak notification handler
+export const streakNotificationHandler: NotificationHandler = {
+  type: 'streak',
+
+  create: async ({ toUserId, extraData }) => {
+    const admin = getAdmin();
+
+    const count = extraData?.count || 7;
+    const activityName = extraData?.activityName || 'activities';
+    const message = `Day ${count} in a row of ${activityName}—and that's on consistency with purpose.`;
+
+    const { error } = await admin.from('notifications').insert({
+      type: 'streak',
+      message,
+      from_user_id: null,
+      to_user_id: toUserId,
+      related_id: null,
+      extra_data: extraData || {},
+      is_read: false,
+      status: 'completed'
+    });
+
+    if (error) throw error;
+  },
+
+  formatMessage: ({ extraData }) => {
+    const count = extraData?.count || 7;
+    const activityName = extraData?.activityName || 'activities';
+    return `Day ${count} in a row of ${activityName}—and that's on consistency with purpose.`;
   }
 };
 
@@ -450,21 +609,24 @@ export const notificationHandlers: Record<NotificationType, NotificationHandler>
   payment_confirmed: paymentConfirmedNotificationHandler,
   like: likeNotificationHandler,
   comment: commentNotificationHandler,
+  mention: mentionNotificationHandler,
   studio_update: {
     type: 'studio_update',
-    create: async () => {},
+    create: async () => { },
     formatMessage: () => 'Studio update'
   },
   class_reminder: {
     type: 'class_reminder',
-    create: async () => {},
+    create: async () => { },
     formatMessage: () => 'Class reminder'
   },
   achievement: {
     type: 'achievement',
-    create: async () => {},
+    create: async () => { },
     formatMessage: () => 'Achievement unlocked'
-  }
+  },
+  milestone: milestoneNotificationHandler,
+  streak: streakNotificationHandler
 };
 
 // Main notification service
@@ -477,47 +639,47 @@ export class NotificationService {
     if (!handler) {
       throw new Error(`No handler found for notification type: ${type}`);
     }
-    
+
     await handler.create(params);
   }
-  
+
   static async getUserNotifications(userId: string, limit = 50): Promise<BaseNotification[]> {
-    const { data: notifications, error } = await supabase
+    const { data: notifications, error } = await getAdmin()
       .from('notifications')
       .select('*')
       .eq('to_user_id', userId)
       .order('created_at', { ascending: false })
       .limit(limit);
-    
+
     if (error) {
       throw new Error(`Failed to fetch notifications: ${error.message}`);
     }
-    
+
     return notifications || [];
   }
-  
+
   static async markAsRead(notificationId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await getAdmin()
       .from('notifications')
       .update({ is_read: true })
       .eq('id', notificationId);
-    
+
     if (error) {
       throw new Error(`Failed to mark notification as read: ${error.message}`);
     }
   }
-  
+
   static async deleteNotification(notificationId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await getAdmin()
       .from('notifications')
       .delete()
       .eq('id', notificationId);
-    
+
     if (error) {
       throw new Error(`Failed to delete notification: ${error.message}`);
     }
   }
-  
+
   static getHandler(type: NotificationType): NotificationHandler {
     const handler = notificationHandlers[type];
     if (!handler) {
@@ -525,28 +687,24 @@ export class NotificationService {
     }
     return handler;
   }
-  
+
   static async updateNotificationStatus(
-    notificationId: string, 
+    notificationId: string,
     status: 'pending' | 'accepted' | 'declined' | 'completed',
     updatedMessage?: string
   ): Promise<void> {
-    const updateData: any = { 
+    const updateData: any = {
       status
     };
     if (updatedMessage) {
       updateData.message = updatedMessage;
     }
-    
-    if (!supabaseAdmin) {
-      throw new Error('Supabase admin client not initialized');
-    }
-    
-    const { error } = await supabaseAdmin
+
+    const { error } = await getAdmin()
       .from('notifications')
       .update(updateData)
       .eq('id', notificationId);
-    
+
     if (error) {
       throw new Error(`Failed to update notification status: ${error.message}`);
     }

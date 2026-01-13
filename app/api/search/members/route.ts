@@ -15,7 +15,7 @@ async function enhanceUsersWithFollowData(users: Array<{
 
   // Get all follow relationships in one query (both approved and pending)
   const userIds = users.map(u => u.id);
-  
+
   const { data: followData, error: followError } = await supabase
     .from('friends')
     .select('user_id, friend_id, approved')
@@ -30,15 +30,15 @@ async function enhanceUsersWithFollowData(users: Array<{
   // Process each user
   const enhancedUsers = users.map(searchUser => {
     // Calculate follower count for this user (only approved followers)
-    const followerCount = followData.filter(f => 
+    const followerCount = followData.filter(f =>
       f.friend_id === searchUser.id && f.approved
     ).length;
 
     // Check if current user follows this search user (approved or pending)
-    const followRelationship = followData.find(f => 
+    const followRelationship = followData.find(f =>
       f.user_id === currentUserId && f.friend_id === searchUser.id
     );
-    
+
     const i_follow = !!followRelationship;
     const is_pending = followRelationship && !followRelationship.approved;
 
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
@@ -155,17 +155,67 @@ export async function POST(request: NextRequest) {
       .eq('approved', true);
 
     const followedIds = followedUsers?.map(f => f.friend_id) || [];
-    
+
     // Get top 4 users the current user doesn't follow
-    const { data: users } = await supabase
+    let usersQuery = supabase
       .from('users')
-      .select('id, username, full_name, avatar_url, followers_count, is_instructor')
-      .neq('id', user.id)
-      .not('id', 'in', `(${followedIds.length > 0 ? followedIds.join(',') : 'NULL'})`)
-      .limit(4)
+      .select('id, username, full_name, avatar_url, followers_count, is_instructor, activity_feed!activity_feed_user_id_fkey(count)')
+      .neq('id', user.id);
+
+    if (followedIds.length > 0) {
+      // Use proper Postgres tuple syntax for UUIDs in validation
+      usersQuery = usersQuery.not('id', 'in', `(${followedIds.map(id => `"${id}"`).join(',')})`);
+    }
+
+
+    // Fetch more candidates to filter by post count
+    const { data: candidates, error: usersError } = await usersQuery
+      .limit(100)
       .order('followers_count', { ascending: false });
 
+    // Filter for users with at least 3 posts and sort by post count
+    // @ts-ignore - Supabase types for joined count can be tricky
+    const users = candidates
+      ?.filter(u => {
+        const postCount = u.activity_feed?.[0]?.count || 0;
+        return postCount >= 3;
+      })
+      .sort((a, b) => {
+        // @ts-ignore
+        const countA = a.activity_feed?.[0]?.count || 0;
+        // @ts-ignore
+        const countB = b.activity_feed?.[0]?.count || 0;
+        return countB - countA;
+      })
+      .slice(0, 4) || [];
+
+    if (usersError) {
+      console.error('❌ Error fetching recommended users:', usersError);
+    }
+
+    console.log(`🔍 Found ${users?.length || 0} recommended users for user ${user.id}. Followed count: ${followedIds.length}`);
+
     if (!users || users.length === 0) {
+      console.log('🔍 No recommended users found with filters. Trying a simpler catch-all query...');
+      const { data: allUsers, error: allUsersError } = await supabase
+        .from('users')
+        .select('id, username, full_name, avatar_url, followers_count, is_instructor')
+        .neq('id', user.id)
+        .limit(10);
+
+      if (allUsersError) {
+        console.error('❌ Error in catch-all users query:', allUsersError);
+      }
+
+      if (allUsers && allUsers.length > 0) {
+        console.log(`🔍 Catch-all found ${allUsers.length} users. Returning these instead.`);
+        const enhancedUsers = await enhanceUsersWithFollowData(allUsers, user.id);
+        return NextResponse.json({
+          success: true,
+          data: enhancedUsers,
+        });
+      }
+
       return NextResponse.json({
         success: true,
         data: [],

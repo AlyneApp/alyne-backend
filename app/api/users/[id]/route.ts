@@ -13,8 +13,13 @@ export async function GET(
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
+      console.error('❌ Auth Error in users/[id]:', {
+        error: authError,
+        tokenLength: token?.length,
+        hasUser: !!user
+      });
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
 
@@ -87,7 +92,7 @@ export async function GET(
 
     const isFollowing = !!followData?.approved;
     const followRequestStatus = followData ? (followData.approved ? 'approved' : 'pending') : null;
-    
+
     // Check if current user can view the profile content
     const isOwnProfile = user.id === id;
     const canViewContent = isOwnProfile || !targetUser.is_private || isFollowing;

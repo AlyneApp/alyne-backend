@@ -158,6 +158,43 @@ export async function POST(request: NextRequest) {
         }
         break;
 
+      case 'follow':
+        // "follow" notifications are informational (auto-approved follows on public accounts)
+        // The action here is "follow back" - create a reciprocal follow
+        if (action === 'approve') {
+          // Check if already following back
+          const { data: existingFollow } = await supabaseAdmin
+            .from('friends')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('friend_id', notification.from_user_id)
+            .maybeSingle();
+
+          if (!existingFollow) {
+            // Create follow back (auto-approved since this is a reciprocal action)
+            const { error: followBackError } = await supabaseAdmin
+              .from('friends')
+              .insert({
+                user_id: user.id,
+                friend_id: notification.from_user_id,
+                approved: true
+              });
+
+            if (followBackError) {
+              console.error('Error following back:', followBackError);
+              return NextResponse.json({ error: 'Failed to follow back' }, { status: 500 });
+            }
+          }
+
+          newStatus = 'completed';
+          updatedMessage = `You and ${notification.extra_data?.from_user_name || 'User'} are now friends`;
+        } else {
+          // User declined to follow back - just mark notification as completed
+          newStatus = 'completed';
+          updatedMessage = notification.message;
+        }
+        break;
+
       default:
         return NextResponse.json({ error: `Unsupported notification type: ${notification.type}` }, { status: 400 });
     }

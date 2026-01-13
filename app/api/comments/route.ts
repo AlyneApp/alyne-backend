@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { NotificationService } from '@/lib/notifications';
 
 // Type definitions
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -95,8 +95,8 @@ export async function POST(request: NextRequest) {
     const { activity_id, content } = await request.json();
 
     if (!activity_id || !content?.trim()) {
-      return NextResponse.json({ 
-        error: 'activity_id and content are required' 
+      return NextResponse.json({
+        error: 'activity_id and content are required'
       }, { status: 400 });
     }
 
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the activity owner to send notification
-    const { data: activityData, error: activityError } = await supabase
+    const { data: activityData, error: activityError } = await supabaseAdmin!
       .from('activity_feed')
       .select('user_id, comment_count')
       .eq('id', activity_id)
@@ -149,8 +149,8 @@ export async function POST(request: NextRequest) {
     if (!activityError && activityData) {
       // Update comment_count
       const newCount = (activityData.comment_count || 0) + 1;
-      
-      const { error: updateError } = await supabase
+
+      const { error: updateError } = await supabaseAdmin!
         .from('activity_feed')
         .update({ comment_count: newCount })
         .eq('id', activity_id);
@@ -171,6 +171,39 @@ export async function POST(request: NextRequest) {
         } catch (notificationError) {
           console.error('Error creating comment notification:', notificationError);
           // Don't fail the comment creation if notification fails
+        }
+      }
+
+      // Parse mentions (@username)
+      const mentionRegex = /@(\w+)/g;
+      const mentions = [...content.matchAll(mentionRegex)].map(match => match[1]);
+      const uniqueMentions = [...new Set(mentions)];
+
+      if (uniqueMentions.length > 0) {
+        // Find user IDs for the mentioned usernames
+        const { data: mentionedUsers, error: usersError } = await supabaseAdmin!
+          .from('users')
+          .select('id, username')
+          .in('username', uniqueMentions);
+
+        if (!usersError && mentionedUsers) {
+          for (const mentionedUser of mentionedUsers) {
+            // Don't send mention notification to the commenter themselves
+            if (mentionedUser.id !== user.id) {
+              try {
+                await NotificationService.createNotification('mention', {
+                  fromUserId: user.id,
+                  toUserId: mentionedUser.id,
+                  relatedId: activity_id,
+                  extraData: {
+                    comment_id: comment.id
+                  }
+                });
+              } catch (mentionNotifError) {
+                console.error(`Error creating mention notification for ${mentionedUser.username}:`, mentionNotifError);
+              }
+            }
+          }
         }
       }
     }

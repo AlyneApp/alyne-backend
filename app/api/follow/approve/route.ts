@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 // POST /api/follow/approve - Approve or deny a follow request
 export async function POST(request: NextRequest) {
@@ -27,7 +27,13 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
     }
-
+    // Validate supabaseAdmin
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Server configuration error: supabaseAdmin not available' },
+        { status: 500 }
+      );
+    }
     // Get the follow request to verify ownership
     const { data: followRequest, error: fetchError } = await supabase
       .from('friends')
@@ -66,7 +72,7 @@ export async function POST(request: NextRequest) {
       const { error: updateNotificationError } = await supabase
         .from('notifications')
         .update({
-          type: 'follow',
+          type: 'follow_request',
           message: `${followerName} is now following you. Follow back?`,
           is_read: false
         })
@@ -78,7 +84,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Create a notification for the follower
-      const { error: notificationError } = await supabase
+      const { error: notificationError } = await supabaseAdmin
         .from('notifications')
         .insert({
           type: 'follow_approved',
