@@ -7,7 +7,7 @@ type ParsedCoordinates = {
 };
 
 function parseEwkbHexPoint(hex: string): ParsedCoordinates | null {
-  // PostGIS EWKB hex for POINT, e.g. 0101000020E6100000...
+  // PostGIS EWKB hex for POINT, e.g. 0101000020E6100000, which is 24 bytes long.
   if (!/^[0-9a-f]+$/i.test(hex) || hex.length < 42 || hex.length % 2 !== 0) {
     return null;
   }
