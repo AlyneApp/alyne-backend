@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'studioId, studioName, and rating are required' }, { status: 400 });
     }
 
-    if (!['obsessed', 'solid', 'not_for_me'].includes(rating)) {
+    if (!['obsessed', 'loved_it', 'pretty_good', 'it_was_fine', 'not_for_me', 'solid'].includes(rating)) {
       return NextResponse.json({ error: 'Invalid rating value' }, { status: 400 });
     }
 
